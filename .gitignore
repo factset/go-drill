@@ -15,3 +15,5 @@
 # vendor/
 
 protobuf/*.proto
+internal/cmd/tester
+.vscode

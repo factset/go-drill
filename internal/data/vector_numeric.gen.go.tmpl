@@ -1,0 +1,74 @@
+package data
+
+import (
+  "reflect"
+
+  "github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+)
+
+{{range .In}}
+// {{ .Name}} vector
+
+type {{.Name}}Vector struct {
+  values []{{.name}}
+  meta   *shared.SerializedField
+}
+
+func ({{.Name}}Vector) Type() reflect.Type {
+  return reflect.TypeOf({{.name}}({{.Default}}))
+}
+
+func ({{.Name}}Vector) TypeLen() (int64, bool) {
+  return 0, false
+}
+
+func (v *{{.Name}}Vector) Len() int {
+  return int(len(v.values))
+}
+
+func (v *{{.Name}}Vector) Get(index uint) {{.name}} {
+  return v.values[index]
+}
+
+func (v *{{.Name}}Vector) Value(index uint) interface{} {
+  return v.Get(index)
+}
+
+func New{{.Name}}Vector(data []byte, meta *shared.SerializedField) *{{.Name}}Vector {
+  return &{{.Name}}Vector{
+    values: {{.Name}}Traits.CastFromBytes(data),
+    meta: meta,
+  }
+}
+
+type Nullable{{.Name}}Vector struct {
+  *{{.Name}}Vector
+
+  byteMap []byte
+}
+
+func (nv *Nullable{{.Name}}Vector) IsNull(index uint) bool {
+  return nv.byteMap[index] == 0
+}
+
+func (nv *Nullable{{.Name}}Vector) Get(index uint) *{{.name}} {
+  if nv.IsNull(index) { return nil }
+
+  return &nv.values[index]
+}
+
+func (nv *Nullable{{.Name}}Vector) Value(index uint) interface{} {
+  return nv.Get(index)
+}
+
+func NewNullable{{.Name}}Vector(data []byte, meta *shared.SerializedField) *Nullable{{.Name}}Vector {
+  byteMap := data[:meta.GetValueCount()]
+  remaining := data[meta.GetValueCount():]
+
+  return &Nullable{{.Name}}Vector{
+    New{{.Name}}Vector(remaining, meta),
+    byteMap,
+  }
+}
+
+{{end}}

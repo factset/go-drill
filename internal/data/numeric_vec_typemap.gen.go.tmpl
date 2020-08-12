@@ -1,0 +1,32 @@
+package data
+
+import (
+  "github.com/zeroshade/go-drill/internal/rpc/proto/common"
+  "github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+)
+
+func NewNumericValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
+  if meta.GetMajorType().GetMode() == common.DataMode_OPTIONAL {
+    switch meta.GetMajorType().GetMinorType() {
+{{range .In}}
+{{ if .ProtoType -}}
+    case common.MinorType_{{.ProtoType}}:
+      return NewNullable{{.Name}}Vector(rawData, meta)
+{{end}}
+{{end}}
+    default:
+      return nil
+    }
+  }
+
+  switch meta.GetMajorType().GetMinorType() {
+{{range .In}}
+{{ if .ProtoType -}}
+  case common.MinorType_{{.ProtoType}}:
+    return New{{.Name}}Vector(rawData, meta)
+{{end}}
+{{end}}
+  default:
+    return nil
+  }
+}

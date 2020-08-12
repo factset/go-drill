@@ -1,0 +1,44 @@
+package data
+
+import (
+  "reflect"
+  "unsafe"
+)
+
+var (
+{{ range .In }}
+  {{.Name}}Traits {{.name}}Traits
+{{- end}}
+)
+
+{{range .In}}
+// {{ .Name}} traits
+
+const (
+  // {{.Name}}SizeBytes specifies the number of bytes required to store a single {{.Type}} in memory
+  {{.Name}}SizeBytes = int(unsafe.Sizeof({{.Type}}({{.Default}})))
+)
+
+type {{.name}}Traits struct{}
+
+// BytesRequired returns the number of bytes required to store n elements in memory
+func ({{.name}}Traits) BytesRequired(n int) int { return {{.Name}}SizeBytes * n }
+
+// CastFromBytes reinterprets the slice b to a slice of type {{.Type}}
+//
+// NOTE: len(b) must be a multiple of {{.Name}}SizeBytes
+func ({{.name}}Traits) CastFromBytes(b []byte) []{{.Type}} {
+  h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+  var res []{{.Type}}
+  s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+  s.Data = h.Data
+  s.Len = h.Len/{{.Name}}SizeBytes
+  s.Cap = h.Cap/{{.Name}}SizeBytes
+
+  return res
+}
+
+// Copy copies src to dst
+func ({{.name}}Traits) Copy(dst, src []{{.Type}}) { copy(dst, src) }
+{{end}}

@@ -1,0 +1,78 @@
+[
+  {
+    "Name": "Int64",
+    "name": "int64",
+    "Type": "int64",
+    "Default": "0",
+    "Size": "8",
+    "ProtoType": "BIGINT"
+  },
+  {
+    "Name": "Int32",
+    "name": "int32",
+    "Type": "int32",
+    "Default": "0",
+    "Size": "4",
+    "ProtoType": "INT"
+  },
+  {
+    "Name": "Float64",
+    "name": "float64",
+    "Type": "float64",
+    "Default": "0",
+    "Size": "8",
+    "ProtoType": "FLOAT8"
+  },
+  {
+    "Name": "Uint64",
+    "name": "uint64",
+    "Type": "uint64",
+    "Default": "0",
+    "Size": "8"
+  },
+  {
+    "Name": "Uint32",
+    "name": "uint32",
+    "Type": "uint32",
+    "Default": "0",
+    "Size": "4"
+  },
+  {
+    "Name": "Float32",
+    "name": "float32",
+    "Type": "float32",
+    "Default": "0",
+    "Size": "4",
+    "ProtoType": "FLOAT4"
+  },
+  {
+    "Name": "Int16",
+    "name": "int16",
+    "Type": "int16",
+    "Default": "0",
+    "Size": "2",
+    "ProtoType": "SMALLINT"
+  },
+  {
+    "Name": "Uint16",
+    "name": "uint16",
+    "Type": "uint16",
+    "Default": "0",
+    "Size": "2"
+  },
+  {
+    "Name": "Int8",
+    "name": "int8",
+    "Type": "int8",
+    "Default": "0",
+    "Size": "1",
+    "ProtoType": "TINYINT"
+  },
+  {
+    "Name": "Uint8",
+    "name": "uint8",
+    "Type": "uint8",
+    "Default": "0",
+    "Size": "1"
+  }
+]

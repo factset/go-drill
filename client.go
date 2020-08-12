@@ -354,7 +354,7 @@ func (d *drillClient) handleAuth() error {
 		return fmt.Errorf("client wants encryption, server doesn't support encryption")
 	}
 
-	wrapper, err := sasl.NewSaslWrapper(d.opts.User, d.opts.ServiceName+"/"+d.endpoint.GetAddress(), sasl.SaslSecurityProps{
+	wrapper, err := sasl.NewSaslWrapper(d.opts.User, d.opts.ServiceName+"/"+d.endpoint.GetAddress(), sasl.SecurityProps{
 		MinSsf:        56,
 		MaxSsf:        math.MaxUint32,
 		MaxBufSize:    d.serverInfo.GetMaxWrappedSize(),

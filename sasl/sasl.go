@@ -11,13 +11,17 @@ import (
 	"github.com/jcmturner/gokrb5/v8/gssapi"
 )
 
-type SaslSecurityProps struct {
+// SecurityProps simply contains settings used for the sasl negotiation.
+//
+// These are utilized by the gssapi mechanism in order to determine the QOP settings
+type SecurityProps struct {
 	MinSsf        uint32
 	MaxSsf        uint32
 	MaxBufSize    int32
 	UseEncryption bool
 }
 
+// the current state of our authentication
 const (
 	saslAuthInit = iota
 	saslAuthNeg
@@ -25,15 +29,37 @@ const (
 	saslAuthComplete
 )
 
+// Wrapper is the primary interface for sasl-gssapi handling.
+//
+// A wrapper is returned from NewSaslWrapper which will allow performing authentication
+// and then wrapping a desired connection to properly wrap and unwrap messages.
+type Wrapper interface {
+	// InitAuthPayload initializes the local security context and returns a payload
+	// for sending the initial token for negotiation.
+	InitAuthPayload() ([]byte, error)
+	// Step takes the responses from the server (eg. auth challenges) and steps through
+	// the authentication and negotiation protocols, returning the next payload response
+	// to send to the server as long as the gssapi.Status is gssapi.StatusContinueNeeded.
+	// When authentication is complete, the status will be gssapi.StatusComplete. Any other
+	// status will come associated with an error
+	Step([]byte) ([]byte, gssapi.Status)
+	// GetWrappedConn takes the provided connection and wraps it such that anything written
+	// to or read from the connection will be put through the wrap/unwrap calls of the
+	// sasl authentication based on the negotiated security context.
+	GetWrappedConn(net.Conn) net.Conn
+}
+
 type saslwrapper struct {
-	Props SaslSecurityProps
+	Props SecurityProps
 	mech  gssapi.Mechanism
 	ct    gssapi.ContextToken
 
 	state byte
 }
 
-func NewSaslWrapper(userSpn, serviceSpn string, props SaslSecurityProps) (*saslwrapper, error) {
+// NewSaslWrapper takes the provided SPNs and SecurityProps to provide a Wrapper
+// that will perform GSSAPI authentication via kerberos krb5
+func NewSaslWrapper(userSpn, serviceSpn string, props SecurityProps) (Wrapper, error) {
 	krbClient, err := getKrbClient(userSpn)
 	if err != nil {
 		return nil, err
@@ -61,7 +87,8 @@ func (s *saslwrapper) InitAuthPayload() ([]byte, error) {
 	return s.ct.Marshal()
 }
 
-func (s *saslwrapper) chooseQop(mechSsf uint32, serverBitMask byte) (uint32, byte) {
+// chooseQop returns both the Qop bytes and the chosen ssf value
+func (s *saslwrapper) chooseQop(mechSsf uint32, serverBitMask Qop) (uint32, Qop) {
 	qop := QopNone
 	if s.Props.MaxSsf > 0 {
 		qop |= QopIntegrity
@@ -90,16 +117,19 @@ func (s *saslwrapper) chooseQop(mechSsf uint32, serverBitMask byte) (uint32, byt
 func (s *saslwrapper) Step(b []byte) ([]byte, gssapi.Status) {
 	switch s.state {
 	case saslAuthNeg:
+		// handle response from InitAuthPayload
 		if err := s.ct.Unmarshal(b); err != nil {
 			return nil, gssapi.Status{Code: gssapi.StatusDefectiveCredential, Message: err.Error()}
 		}
 
+		// next step is negotating the ssf value
 		s.state = saslAuthSsf
 
 		_, st := s.ct.Verify()
 		return nil, st
 	case saslAuthSsf:
 		var nntoken gssapi.WrapToken
+		// our ssf negotiation will not have the payload encrypted
 		if err := nntoken.Unmarshal(b, true); err != nil {
 			return nil, gssapi.Status{Code: gssapi.StatusDefectiveToken, Message: err.Error()}
 		}
@@ -120,17 +150,25 @@ func (s *saslwrapper) Step(b []byte) ([]byte, gssapi.Status) {
 			return nil, gssapi.Status{Code: gssapi.StatusBadMech, Message: "sasl bad param"}
 		}
 
-		var qop byte
-		mechSsf, qop = s.chooseQop(mechSsf, unwrapped[0])
+		// the 4 bytes we got back should be:
+		// 	[0] == server Qop Bitmask
+		//  [1-3] == BigEndian encoded uint32 server max buffer size for a single payload
+
+		var qop Qop
+		mechSsf, qop = s.chooseQop(mechSsf, Qop(unwrapped[0]))
 
 		maxOutBuf := CalcMaxOutputSize(mechSsf, binary.BigEndian.Uint32(append([]byte{0x00}, unwrapped[1:]...)), s.ct)
 		s.Props.MaxBufSize = int32(maxOutBuf)
 
+		// our response should be formatted the same way:
+		// replacing the first byte with the desired QOP value
 		out := nntoken.Payload
 		binary.BigEndian.PutUint32(out, maxOutBuf)
-		out[0] = qop
+		out[0] = byte(qop)
 
 		token := s.mech.Wrap(out)
+		// update our auth context with the chosen qop value *after* we wrap our response
+		// since the response should not be encrypted even if our future communications will be
 		SetQOP(s.ct, qop)
 		s.state = saslAuthComplete
 		data, err := token.Marshal()
@@ -158,6 +196,8 @@ type gssapiWrappedConn struct {
 	readBuf bytes.Buffer
 }
 
+// fulfill the net.Conn interface
+
 func (g *gssapiWrappedConn) Close() error {
 	return g.conn.Close()
 }
@@ -183,6 +223,7 @@ func (g *gssapiWrappedConn) SetWriteDeadline(t time.Time) error {
 }
 
 func (g *gssapiWrappedConn) Read(b []byte) (int, error) {
+	// use an internal buffer here
 	n, err := g.readBuf.Read(b)
 	if len(b) == n || (err != nil && err != io.EOF) {
 		return n, err

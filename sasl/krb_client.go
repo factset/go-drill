@@ -11,6 +11,11 @@ import (
 	"github.com/jcmturner/gokrb5/v8/credentials"
 )
 
+// getKrbClient is an internal helper for checking the KRB5_CONFIG and KRB5CCNAME
+// environment variables in order to get the current kerberos cached ticket
+//
+// this does not currently support performing authentication itself and assumes you
+// already have cached credentials
 func getKrbClient(principal string) (*client.Client, error) {
 	configPath := os.Getenv("KRB5_CONFIG")
 	if configPath == "" {

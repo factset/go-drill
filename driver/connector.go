@@ -1,4 +1,4 @@
-package drill
+package driver
 
 import (
 	"context"
@@ -7,18 +7,21 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/zeroshade/go-drill"
 )
 
 type Connector struct {
 	zknodes []string
-	opts    Options
+	opts    drill.Options
 
 	drillbits []string
 	curbit    int
 }
 
 func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
-	zook, err := newZKHandler(c.opts.ClusterName, c.zknodes...)
+	zook, err := drill.NewZKHandler(c.opts.ClusterName, c.zknodes...)
 	if err != nil {
 		return nil, err
 	}
@@ -34,11 +37,11 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	endpoint := zook.GetEndpoint(c.drillbits[c.curbit])
 	c.curbit++
 
-	dc := &drillClient{opts: c.opts, zkNodes: c.zknodes}
-	if err := dc.connectEndpoint(ctx, endpoint); err != nil {
+	dc := drill.NewDrillClientWithZK(c.opts, c.zknodes...)
+	if err := dc.ConnectEndpoint(ctx, endpoint); err != nil {
 		return nil, err
 	}
-	return dc, nil
+	return &conn{dc}, nil
 }
 
 func (c *Connector) Driver() driver.Driver {
@@ -46,7 +49,7 @@ func (c *Connector) Driver() driver.Driver {
 }
 
 func parseConnectStr(connectStr string) (driver.Connector, error) {
-	opts := Options{}
+	opts := drill.Options{}
 
 	var zknodes []string
 	args := strings.Split(connectStr, ";")
@@ -75,6 +78,13 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 			opts.User = parsed[1]
 		case "cluster":
 			opts.ClusterName = parsed[1]
+		case "heartbeat":
+			hbsec, err := strconv.Atoi(parsed[1])
+			if err != nil {
+				return nil, err
+			}
+			opts.HeartbeatFreq = new(time.Duration)
+			*opts.HeartbeatFreq = time.Duration(hbsec) * time.Second
 		}
 	}
 

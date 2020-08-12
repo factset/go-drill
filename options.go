@@ -20,5 +20,5 @@ type Options struct {
 	SupportComplexTypes bool
 	ApplicationName     string
 	User                string
-	HeartbeatFreq       time.Duration
+	HeartbeatFreq       *time.Duration
 }

@@ -10,6 +10,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type DrillZK interface {
+	GetDrillBits() []string
+	GetEndpoint(drillbit string) Drillbit
+	Close()
+}
+
 type zkHandler struct {
 	conn *zk.Conn
 
@@ -19,7 +25,7 @@ type zkHandler struct {
 	Err        error
 }
 
-func newZKHandler(cluster string, nodes ...string) (*zkHandler, error) {
+func NewZKHandler(cluster string, nodes ...string) (DrillZK, error) {
 	hdlr := &zkHandler{Connecting: true, Nodes: zk.FormatServers(nodes), Path: "/drill/" + cluster}
 	cn, _, err := zk.Connect(hdlr.Nodes, 30*time.Second, zk.WithEventCallback(func(ev zk.Event) {
 		switch ev.Type {
@@ -58,7 +64,7 @@ func (z *zkHandler) GetDrillBits() []string {
 	return children
 }
 
-func (z *zkHandler) GetEndpoint(drillbit string) *exec.DrillbitEndpoint {
+func (z *zkHandler) GetEndpoint(drillbit string) Drillbit {
 	data, _, err := z.conn.Get(z.Path + "/" + drillbit)
 	if err != nil {
 		log.Fatal(err)

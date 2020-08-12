@@ -2,19 +2,19 @@ package drill
 
 import (
 	"context"
-	"encoding/binary"
+	"database/sql/driver"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"math/rand"
 	"net"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/jcmturner/gokrb5/v8/gssapi"
 	"github.com/zeroshade/go-drill/internal/data"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
@@ -24,82 +24,164 @@ import (
 
 //go:generate go run ./internal/cmd/drillProto runall ../../../
 
+type qid struct {
+	part1 int64
+	part2 int64
+}
+
+type queryData struct {
+	typ int32
+	msg proto.Message
+	raw []byte
+}
+
+type Drillbit interface {
+	GetAddress() string
+	GetUserPort() int32
+}
+
+type Client interface {
+	Close() error
+	ConnectEndpoint(context.Context, Drillbit) error
+	Connect(context.Context) error
+	ConnectWithZK(context.Context, ...string) error
+	SubmitQuery(shared.QueryType, string) (*ResultHandle, error)
+	PrepareQuery(string) (driver.Stmt, error)
+	Ping(context.Context) error
+}
+
 type drillClient struct {
 	conn net.Conn
-
 	opts Options
 
 	drillBits []string
 	curBit    int
 	coordID   int32
-	endpoint  *exec.DrillbitEndpoint
+	endpoint  Drillbit
 	zkNodes   []string
 
-	serverInfo *user.BitToUserHandshake
+	serverInfo      *user.BitToUserHandshake
+	cancelHeartBeat context.CancelFunc
+
+	resultMap sync.Map
+	queryMap  sync.Map
+	pingpong  chan bool
+	outbound  chan []byte
+	close     chan struct{}
 }
 
-func makePrefixedMessage(data []byte) []byte {
-	buf := make([]byte, binary.MaxVarintLen32)
-	nbytes := binary.PutUvarint(buf, uint64(len(data)))
-	return append(buf[:nbytes], data...)
+func NewDrillClient(opts Options) Client {
+	return &drillClient{opts: opts}
 }
 
-func readPrefixedRaw(r io.Reader) (*rpc.CompleteRpcMessage, error) {
-	vbytes := make([]byte, binary.MaxVarintLen32)
-	n, err := io.ReadAtLeast(r, vbytes, binary.MaxVarintLen32)
-	if err == io.EOF {
-		return nil, io.ErrUnexpectedEOF
-	} else if err != nil {
-		return nil, err
-	}
-
-	respLength, vlength := binary.Uvarint(vbytes)
-
-	// if we got an empty message and read too many bytes we're screwed
-	// but this shouldn't happen anyways, just in case
-	if vlength < 1 || vlength+int(respLength) < n {
-		return nil, fmt.Errorf("invalid response")
-	}
-
-	respBytes := make([]byte, respLength)
-	extraLen := copy(respBytes, vbytes[vlength:])
-	_, err = io.ReadFull(r, respBytes[extraLen:])
-	if err == io.EOF {
-		return nil, io.ErrUnexpectedEOF
-	} else if err != nil {
-		return nil, err
-	}
-
-	return data.GetRawRPCMessage(respBytes)
+func NewDrillClientWithZK(opts Options, zk ...string) Client {
+	return &drillClient{opts: opts, zkNodes: zk}
 }
 
-func readPrefixedMessage(r io.Reader, msg proto.Message) (*rpc.RpcHeader, error) {
-	vbytes := make([]byte, binary.MaxVarintLen32)
-	n, err := io.ReadAtLeast(r, vbytes, binary.MaxVarintLen32)
-	if err == io.EOF {
-		return nil, io.ErrUnexpectedEOF
-	} else if err != nil {
-		return nil, err
+func (d *drillClient) recvRoutine() {
+	type readData struct {
+		msg *rpc.CompleteRpcMessage
+		err error
 	}
 
-	respLength, vlength := binary.Uvarint(vbytes)
+	inbound := make(chan readData)
+	go func() {
+		for {
+			msg, err := readPrefixedRaw(d.conn)
+			if err != nil {
+				inbound <- readData{err: err}
+				break
+			}
+			inbound <- readData{msg: msg}
+		}
+	}()
 
-	// if we got an empty message and read too many bytes we're screwed
-	// but this shouldn't happen anyways, just in case
-	if vlength < 1 || vlength+int(respLength) < n {
-		return nil, fmt.Errorf("invalid response")
+	defer func() {
+		close(d.pingpong)
+		d.queryMap.Range(func(_, val interface{}) bool {
+			close(val.(chan *rpc.CompleteRpcMessage))
+			return true
+		})
+		d.resultMap.Range(func(_, val interface{}) bool {
+			close(val.(chan *queryData))
+			return true
+		})
+	}()
+
+	if d.opts.HeartbeatFreq == nil {
+		d.opts.HeartbeatFreq = new(time.Duration)
+		*d.opts.HeartbeatFreq = defaultHeartbeatFreq
 	}
 
-	respBytes := make([]byte, respLength)
-	extraLen := copy(respBytes, vbytes[vlength:])
-	_, err = io.ReadFull(r, respBytes[extraLen:])
-	if err == io.EOF {
-		return nil, io.ErrUnexpectedEOF
-	} else if err != nil {
-		return nil, err
+	if d.opts.HeartbeatFreq != nil && d.opts.HeartbeatFreq.Seconds() > 0 {
+		var heartBeatCtx context.Context
+		heartBeatCtx, d.cancelHeartBeat = context.WithCancel(context.Background())
+		go func() {
+			ticker := time.NewTicker(*d.opts.HeartbeatFreq)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ticker.C:
+					if d.Ping(heartBeatCtx) != nil {
+						return
+					}
+				case <-heartBeatCtx.Done():
+					return
+				}
+			}
+		}()
 	}
 
-	return data.DecodeRpcMessage(respBytes, msg)
+	for {
+		select {
+		case <-d.close:
+			return
+		case encoded := <-d.outbound:
+			_, err := d.conn.Write(makePrefixedMessage(encoded))
+			if err != nil {
+				// do something
+			}
+		case data := <-inbound:
+			if data.err != nil {
+				d.Close()
+				return
+			}
+
+			if data.msg.Header.GetMode() == rpc.RpcMode_PONG {
+				d.pingpong <- true
+			}
+
+			switch data.msg.GetHeader().GetRpcType() {
+			case int32(user.RpcType_ACK):
+				continue
+			case int32(user.RpcType_QUERY_HANDLE):
+				c, ok := d.queryMap.Load(data.msg.Header.GetCoordinationId())
+				if !ok {
+					// do something with error
+				}
+
+				c.(chan *rpc.CompleteRpcMessage) <- data.msg
+			case int32(user.RpcType_QUERY_DATA):
+				d.passQueryResponse(data.msg, &shared.QueryData{})
+			case int32(user.RpcType_QUERY_RESULT):
+				d.passQueryResponse(data.msg, &shared.QueryResult{})
+			}
+		}
+	}
+}
+
+func (d *drillClient) passQueryResponse(data *rpc.CompleteRpcMessage, msg proto.Message) {
+	d.sendAck(data.Header.GetCoordinationId(), true)
+	if err := proto.Unmarshal(data.ProtobufBody, msg); err != nil {
+		// do something
+	}
+
+	qidField := msg.ProtoReflect().Descriptor().Fields().ByName("query_id")
+	q := msg.ProtoReflect().Get(qidField).Message().Interface().(*shared.QueryId)
+
+	c, _ := d.resultMap.Load(qid{q.GetPart1(), q.GetPart2()})
+	c.(chan *queryData) <- &queryData{data.Header.GetRpcType(), msg, data.GetRawBody()}
 }
 
 func (d *drillClient) nextCoordID() (next int32) {
@@ -114,8 +196,7 @@ func (d *drillClient) sendCancel(qid *shared.QueryId) error {
 		return err
 	}
 
-	d.conn.Write(makePrefixedMessage(encoded))
-
+	d.outbound <- encoded
 	return nil
 }
 
@@ -129,15 +210,23 @@ func (d *drillClient) sendAck(coordID int32, isOk bool) {
 		panic(err)
 	}
 
-	d.conn.Write(makePrefixedMessage(encoded))
+	d.outbound <- encoded
 }
 
 func (d *drillClient) Close() error {
+	if d.close != nil {
+		close(d.close)
+		d.close = nil
+	}
+	if d.cancelHeartBeat != nil {
+		d.cancelHeartBeat()
+		d.cancelHeartBeat = nil
+	}
 	d.conn.Close()
 	return nil
 }
 
-func (d *drillClient) connectEndpoint(ctx context.Context, e *exec.DrillbitEndpoint) error {
+func (d *drillClient) ConnectEndpoint(ctx context.Context, e Drillbit) error {
 	d.endpoint = e
 	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", d.endpoint.GetAddress()+":"+strconv.Itoa(int(d.endpoint.GetUserPort())))
 	if err != nil {
@@ -148,13 +237,21 @@ func (d *drillClient) connectEndpoint(ctx context.Context, e *exec.DrillbitEndpo
 
 	d.conn = conn
 	d.coordID = int32(rand.Int()%1729 + 1)
-	return d.doHandshake()
+	if err = d.doHandshake(); err != nil {
+		return err
+	}
+
+	d.close = make(chan struct{})
+	d.outbound = make(chan []byte, 10)
+	d.pingpong = make(chan bool)
+
+	go d.recvRoutine()
+
+	return nil
 }
 
-func (d *drillClient) Connect(ctx context.Context, zkNode ...string) error {
-	d.zkNodes = zkNode
-
-	zoo, err := newZKHandler(d.opts.ClusterName, zkNode...)
+func (d *drillClient) Connect(ctx context.Context) error {
+	zoo, err := NewZKHandler(d.opts.ClusterName, d.zkNodes...)
 	if err != nil {
 		return err
 	}
@@ -166,7 +263,12 @@ func (d *drillClient) Connect(ctx context.Context, zkNode ...string) error {
 	})
 
 	d.curBit = 0
-	return d.connectEndpoint(ctx, zoo.GetEndpoint(d.drillBits[d.curBit]))
+	return d.ConnectEndpoint(ctx, zoo.GetEndpoint(d.drillBits[d.curBit]))
+}
+
+func (d *drillClient) ConnectWithZK(ctx context.Context, zkNode ...string) error {
+	d.zkNodes = zkNode
+	return d.Connect(ctx)
 }
 
 func (d *drillClient) MakeMetaRequest() *user.ServerMeta {
@@ -186,81 +288,36 @@ func (d *drillClient) MakeMetaRequest() *user.ServerMeta {
 	return resp.ServerMeta
 }
 
-func (d *drillClient) getQueryResults(ctx context.Context, qid *shared.QueryId, b chan *rowbatch) {
-	defer close(b)
-
-	done := make(chan struct{})
-	defer close(done)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-			d.sendCancel(qid)
-		case <-done:
-		}
-	}()
-
-	for {
-		msg, err := readPrefixedRaw(d.conn)
-		if err != nil {
-			b <- &rowbatch{readErr: err}
-			return
-		}
-
-		switch msg.GetHeader().GetRpcType() {
-		case int32(user.RpcType_ACK):
-			// this means a cancel was sent, we should receive a QueryResult message
-			// shortly with the cancelled message
-		case int32(user.RpcType_QUERY_DATA):
-			d.sendAck(msg.Header.GetCoordinationId(), true)
-
-			qd := &shared.QueryData{}
-			if err = proto.Unmarshal(msg.ProtobufBody, qd); err != nil {
-				panic(err)
-			}
-
-			if qid.GetPart1() != qd.QueryId.GetPart1() {
-				panic("wtf query id")
-			}
-
-			// fmt.Println("Fields:", qd.GetDef())
-
-			rb := &rowbatch{
-				def:  qd.GetDef(),
-				vecs: make([]data.DataVector, 0, len(qd.GetDef().GetField())),
-			}
-
-			rawData := msg.GetRawBody()
-			var offset int32 = 0
-			for _, f := range qd.GetDef().GetField() {
-				// fmt.Println("Field #", idx, ":", f.GetNamePart().GetName())
-
-				rb.vecs = append(rb.vecs, data.NewValueVec(rawData[offset:offset+f.GetBufferLength()], f))
-				offset += f.GetBufferLength()
-			}
-
-			b <- rb
-		case int32(user.RpcType_QUERY_RESULT):
-			d.sendAck(*msg.Header.CoordinationId, true)
-
-			qr := &shared.QueryResult{}
-			if err = proto.Unmarshal(msg.ProtobufBody, qr); err != nil {
-				panic(err)
-			}
-
-			if qid.GetPart1() != qr.GetQueryId().GetPart1() {
-				panic("mismatch")
-			}
-
-			// fmt.Println(qr.GetQueryState())
-			// fmt.Println(msg.GetHeader())
-			b <- &rowbatch{queryResult: qr}
-			return
-		}
+func (d *drillClient) PrepareQuery(plan string) (driver.Stmt, error) {
+	coord := d.nextCoordID()
+	req := &user.CreatePreparedStatementReq{SqlQuery: &plan}
+	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_CREATE_PREPARED_STATEMENT, coord, req)
+	if err != nil {
+		return nil, err
 	}
+
+	queryHandle := make(chan *rpc.CompleteRpcMessage)
+	d.queryMap.Store(coord, queryHandle)
+
+	d.outbound <- encoded
+	rsp, ok := <-queryHandle
+	if !ok || rsp == nil {
+		return nil, errors.New("failed to read")
+	}
+
+	resp := &user.CreatePreparedStatementResp{}
+	if err = proto.Unmarshal(rsp.GetProtobufBody(), resp); err != nil {
+		return nil, err
+	}
+
+	if resp.GetStatus() != user.RequestStatus_OK {
+		return nil, fmt.Errorf("got error: %s", resp.GetError().GetMessage())
+	}
+
+	return &prepared{stmt: resp.PreparedStatement, client: d}, nil
 }
 
-func (d *drillClient) SubmitQuery(t shared.QueryType, plan string) (*shared.QueryId, error) {
+func (d *drillClient) SubmitQuery(t shared.QueryType, plan string) (*ResultHandle, error) {
 	query := &user.RunQuery{
 		ResultsMode: user.QueryResultsMode_STREAM_FULL.Enum(),
 		Type:        &t,
@@ -273,16 +330,30 @@ func (d *drillClient) SubmitQuery(t shared.QueryType, plan string) (*shared.Quer
 		return nil, err
 	}
 
-	// fmt.Println("Submit with Coord:", coord)
-	_, err = d.conn.Write(makePrefixedMessage(encoded))
+	queryHandle := make(chan *rpc.CompleteRpcMessage)
+	d.queryMap.Store(coord, queryHandle)
+
+	d.outbound <- encoded
+	rsp, ok := <-queryHandle
+	if !ok || rsp == nil {
+		return nil, errors.New("failed to read")
+	}
+
+	resp := &shared.QueryId{}
+	err = proto.Unmarshal(rsp.ProtobufBody, resp)
+
 	if err != nil {
 		return nil, err
 	}
 
-	resp := &shared.QueryId{}
-	_, err = readPrefixedMessage(d.conn, resp)
-	// fmt.Println(hdr)
-	return resp, err
+	dataChannel := make(chan *queryData, 5)
+	d.resultMap.Store(qid{resp.GetPart1(), resp.GetPart2()}, dataChannel)
+
+	return &ResultHandle{
+		dataChannel: dataChannel,
+		queryID:     resp,
+		client:      d,
+	}, nil
 }
 
 func (d *drillClient) doHandshake() error {
@@ -313,22 +384,22 @@ func (d *drillClient) doHandshake() error {
 		return err
 	}
 
-	log.Print("Handshake, write: ")
-	log.Println(d.conn.Write(makePrefixedMessage(encoded)))
-
-	d.serverInfo = &user.BitToUserHandshake{}
-	hdr, err := readPrefixedMessage(d.conn, d.serverInfo)
+	_, err = d.conn.Write(makePrefixedMessage(encoded))
 	if err != nil {
 		return err
 	}
 
-	log.Println("Encrypted: ", d.serverInfo.GetEncrypted())
-	log.Println("MaxWrapped: ", d.serverInfo.GetMaxWrappedSize())
-	log.Println("AuthMechs: ", d.serverInfo.GetAuthenticationMechanisms())
+	d.serverInfo = &user.BitToUserHandshake{}
+	_, err = readPrefixedMessage(d.conn, d.serverInfo)
+	if err != nil {
+		return err
+	}
 
-	log.Println(d.serverInfo.GetStatus().String())
-	log.Println(hdr.GetMode().String())
-	log.Println(user.RpcType_name[hdr.GetRpcType()])
+	if d.opts.SaslEncrypt != d.serverInfo.GetEncrypted() {
+		return errors.New("invalid security options")
+	}
+
+	log.Println("AuthMechs: ", d.serverInfo.GetAuthenticationMechanisms())
 
 	switch d.serverInfo.GetStatus() {
 	case user.HandshakeStatus_SUCCESS:
@@ -342,7 +413,6 @@ func (d *drillClient) doHandshake() error {
 	case user.HandshakeStatus_UNKNOWN_FAILURE:
 		return fmt.Errorf("unknown handshake failure")
 	case user.HandshakeStatus_AUTH_REQUIRED:
-		log.Println("server requires sasl authentication")
 		return d.handleAuth()
 	}
 
@@ -411,6 +481,62 @@ func (d *drillClient) handleAuth() error {
 	}
 
 	d.conn = wrapper.GetWrappedConn(d.conn)
+
+	return nil
+}
+
+func (d *drillClient) ExecuteStmt(stmt *user.PreparedStatement) (*ResultHandle, error) {
+	coord := d.nextCoordID()
+	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, coord, &user.RunQuery{
+		ResultsMode:             user.QueryResultsMode_STREAM_FULL.Enum(),
+		Type:                    shared.QueryType_PREPARED_STATEMENT.Enum(),
+		PreparedStatementHandle: stmt.ServerHandle,
+	})
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	queryHandle := make(chan *rpc.CompleteRpcMessage)
+	d.queryMap.Store(coord, queryHandle)
+	d.outbound <- encoded
+	rsp, ok := <-queryHandle
+	if !ok || rsp == nil {
+		return nil, errors.New("failed to read")
+	}
+
+	resp := &shared.QueryId{}
+	err = proto.Unmarshal(rsp.GetProtobufBody(), resp)
+	if err != nil {
+		return nil, err
+	}
+
+	dataChannel := make(chan *queryData, 5)
+	d.resultMap.Store(qid{resp.GetPart1(), resp.GetPart2()}, dataChannel)
+
+	return &ResultHandle{
+		dataChannel: dataChannel,
+		queryID:     resp,
+		client:      d,
+	}, nil
+}
+
+func (d *drillClient) Ping(ctx context.Context) error {
+	coord := d.nextCoordID()
+	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_PING, user.RpcType_ACK, coord, &rpc.Ack{Ok: proto.Bool(true)})
+	if err != nil {
+		return driver.ErrBadConn
+	}
+
+	d.outbound <- encoded
+	select {
+	case val, ok := <-d.pingpong:
+		if !ok || !val {
+			return driver.ErrBadConn
+		}
+	case <-ctx.Done():
+		return driver.ErrBadConn
+	}
 
 	return nil
 }

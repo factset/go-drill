@@ -6,9 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
-	"google.golang.org/protobuf/proto"
 )
 
 type prepared struct {
@@ -53,7 +51,7 @@ func (p *prepared) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 		return nil, fmt.Errorf("drill does not support parameters in prepared statements")
 	}
 
-	qid, err := p.client.ExecuteStmt(p.stmt)
+	handle, err := p.client.ExecuteStmt(p.stmt)
 	if err != nil {
 		return nil, err
 	}
@@ -64,52 +62,23 @@ func (p *prepared) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	go func() {
 		select {
 		case <-ctx.Done():
-			p.client.sendCancel(qid)
+			handle.Cancel()
 		case <-done:
 		}
 	}()
 
 	var affectedRows int64 = 0
+	for err = handle.Next(); err != nil; err = handle.Next() {
+		batch := handle.GetRecordBatch()
 
-	for {
-		msg, err := readPrefixedRaw(p.client.conn)
-		if err != nil {
-			return nil, err
-		}
-
-		switch msg.GetHeader().GetRpcType() {
-		case int32(user.RpcType_QUERY_DATA):
-			p.client.sendAck(msg.Header.GetCoordinationId(), true)
-
-			qd := &shared.QueryData{}
-			if err = proto.Unmarshal(msg.ProtobufBody, qd); err != nil {
-				return nil, err
-			}
-
-			// qid should equal qd.QueryId
-			affectedRows += int64(qd.GetAffectedRowsCount())
-		case int32(user.RpcType_QUERY_RESULT):
-			p.client.sendAck(*msg.Header.CoordinationId, true)
-
-			qr := &shared.QueryResult{}
-			if err = proto.Unmarshal(msg.ProtobufBody, qr); err != nil {
-				return nil, err
-			}
-
-			switch qr.GetQueryState() {
-			case shared.QueryResult_COMPLETED:
-				return &result{rowsAffected: affectedRows, rowsError: nil}, nil
-			case shared.QueryResult_CANCELED:
-				return driver.ResultNoRows, errors.New("query cancelled")
-			case shared.QueryResult_FAILED:
-				if len(qr.GetError()) > 0 {
-					return driver.ResultNoRows, fmt.Errorf("query failed with error: %s", qr.GetError()[0].GetMessage())
-				}
-
-				return driver.ResultNoRows, errors.New("query failed with unknown error")
-			}
-		}
+		affectedRows += int64(batch.Def.GetAffectedRowsCount())
 	}
+
+	if err == QueryCompleted {
+		err = nil
+	}
+
+	return driver.ResultNoRows, err
 }
 
 func (p *prepared) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
@@ -117,15 +86,25 @@ func (p *prepared) QueryContext(ctx context.Context, args []driver.NamedValue) (
 		return nil, fmt.Errorf("drill does not support parameters in prepared statements")
 	}
 
-	qid, err := p.client.ExecuteStmt(p.stmt)
+	handle, err := p.client.ExecuteStmt(p.stmt)
 	if err != nil {
-		return nil, err
+		return nil, driver.ErrBadConn
 	}
+
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			handle.Cancel()
+		case <-done:
+		}
+	}()
 
 	r := &rows{
-		batches: make(chan *rowbatch, 10),
+		handle: handle,
 	}
 
-	go p.client.getQueryResults(ctx, qid, r.batches)
-	return r, nil
+	err = handle.Next()
+	close(done)
+	return r, err
 }

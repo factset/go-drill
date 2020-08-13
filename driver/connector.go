@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -13,32 +12,12 @@ import (
 )
 
 type Connector struct {
-	zknodes []string
-	opts    drill.Options
-
-	drillbits []string
-	curbit    int
+	base drill.Conn
 }
 
 func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
-	zook, err := drill.NewZKHandler(c.opts.ClusterName, c.zknodes...)
+	dc, err := c.base.NewConnection(ctx)
 	if err != nil {
-		return nil, err
-	}
-	defer zook.Close()
-
-	if len(c.drillbits) == 0 {
-		c.drillbits = zook.GetDrillBits()
-		rand.Shuffle(len(c.drillbits), func(i, j int) {
-			c.drillbits[i], c.drillbits[j] = c.drillbits[j], c.drillbits[i]
-		})
-	}
-
-	endpoint := zook.GetEndpoint(c.drillbits[c.curbit])
-	c.curbit++
-
-	dc := drill.NewDrillClientWithZK(c.opts, c.zknodes...)
-	if err := dc.ConnectEndpoint(ctx, endpoint); err != nil {
 		return nil, err
 	}
 	return &conn{dc}, nil
@@ -88,5 +67,5 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 		}
 	}
 
-	return &Connector{zknodes, opts, []string{}, 0}, nil
+	return &Connector{base: drill.NewDrillClient(opts, zknodes...)}, nil
 }

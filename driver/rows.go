@@ -28,12 +28,8 @@ func (r *rows) Next(dest []driver.Value) error {
 		return io.EOF
 	}
 
-	if int32(r.curRow) >= *rb.Def.RecordCount {
+	if int32(r.curRow) >= rb.Def.GetRecordCount() {
 		err := r.handle.Next()
-		if err == drill.QueryCompleted {
-			return io.EOF
-		}
-
 		if err != nil {
 			return err
 		}
@@ -55,28 +51,19 @@ func (r *rows) ColumnTypeScanType(index int) reflect.Type {
 }
 
 func (r *rows) ColumnTypeNullable(index int) (nullable, ok bool) {
-	return r.handle.GetRecordBatch().Def.Field[index].MajorType.GetMode() == common.DataMode_OPTIONAL, true
+	return r.handle.GetRecordBatch().Def.GetField()[index].MajorType.GetMode() == common.DataMode_OPTIONAL, true
 }
 
 func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
-	return r.handle.GetRecordBatch().Def.Field[index].MajorType.GetMinorType().String()
+	return r.handle.GetRecordBatch().Def.GetField()[index].MajorType.GetMinorType().String()
 }
 
-func (r *rows) ColumnTypeLength(index int) (length int64, ok bool) {
-	typ := r.handle.GetRecordBatch().Def.Field[index].GetMajorType()
-	switch typ.GetMinorType() {
-	case common.MinorType_VARCHAR:
-	case common.MinorType_VAR16CHAR:
-	case common.MinorType_VARBINARY:
-	case common.MinorType_VARDECIMAL:
-		length = int64(typ.GetWidth())
-		ok = true
-	}
-	return
+func (r *rows) ColumnTypeLength(index int) (int64, bool) {
+	return r.handle.GetRecordBatch().Vecs[index].TypeLen()
 }
 
 func (r *rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
-	typ := r.handle.GetRecordBatch().Def.Field[index].GetMajorType()
+	typ := r.handle.GetRecordBatch().Def.GetField()[index].GetMajorType()
 	switch typ.GetMinorType() {
 	case common.MinorType_DECIMAL9:
 	case common.MinorType_DECIMAL18:

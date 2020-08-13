@@ -35,27 +35,39 @@ type queryData struct {
 	raw []byte
 }
 
+// A Drillbit represents a single endpoint in the cluster
 type Drillbit interface {
 	GetAddress() string
 	GetUserPort() int32
 }
 
-type Client interface {
-	Close() error
+// A Conn represents a single connection to a drill bit. This interface
+// is useful for things consuming the Client to maintain a separation
+// so that it is easy to mock out for testing.
+type Conn interface {
 	ConnectEndpoint(context.Context, Drillbit) error
 	Connect(context.Context) error
 	ConnectWithZK(context.Context, ...string) error
-	SubmitQuery(shared.QueryType, string) (*ResultHandle, error)
-	PrepareQuery(string) (driver.Stmt, error)
 	Ping(context.Context) error
+	SubmitQuery(shared.QueryType, string) (*ResultHandle, error)
+	PrepareQuery(string) (PreparedHandle, error)
+	ExecuteStmt(PreparedHandle) (*ResultHandle, error)
+	NewConnection(context.Context) (Conn, error)
+	Close() error
 }
 
-type drillClient struct {
-	conn net.Conn
-	opts Options
+// A Client is used for communicating to a drill cluster.
+//
+// After creating a client via one of the NewDrillClient functions, one
+// of the Connect functions can be called to actually connect to the cluster.
+type Client struct {
+	// Modifying the options after connecting does not affect the current connection
+	// it will only affect future connections of this client.
+	Opts Options
 
+	conn      net.Conn
 	drillBits []string
-	curBit    int
+	nextBit   int
 	coordID   int32
 	endpoint  Drillbit
 	zkNodes   []string
@@ -70,15 +82,47 @@ type drillClient struct {
 	close     chan struct{}
 }
 
-func NewDrillClient(opts Options) Client {
-	return &drillClient{opts: opts}
+// NewDrillClient initializes a Drill Client with the given options but does not
+// actually connect yet. It also allows specifying the zookeeper cluster nodes here.
+func NewDrillClient(opts Options, zk ...string) *Client {
+	return &Client{
+		close:    make(chan struct{}),
+		outbound: make(chan []byte, 10),
+		pingpong: make(chan bool),
+		coordID:  int32(rand.Int()%1729 + 1),
+		zkNodes:  zk,
+		Opts:     opts,
+	}
 }
 
-func NewDrillClientWithZK(opts Options, zk ...string) Client {
-	return &drillClient{opts: opts, zkNodes: zk}
+// NewConnection will use the stored zookeeper quorum nodes and drill bit information
+// to find the next drill bit to connect to in order to spread out the load.
+//
+// The client returned from this will already be connected using the same options
+// and zookeeper cluster as the current Client, just picking a different endpoint
+// to connect to.
+func (d *Client) NewConnection(ctx context.Context) (Conn, error) {
+	c := NewDrillClient(d.Opts, d.zkNodes...)
+
+	c.drillBits = d.drillBits
+	eindex := d.nextBit
+	d.nextBit++
+	if d.nextBit >= len(c.drillBits) {
+		d.nextBit = 0
+	}
+
+	c.nextBit = d.nextBit
+
+	zook, err := newZKHandler(c.Opts.ClusterName, c.zkNodes...)
+	if err != nil {
+		return nil, err
+	}
+	defer zook.Close()
+
+	return c, c.ConnectEndpoint(ctx, zook.GetEndpoint(c.drillBits[eindex]))
 }
 
-func (d *drillClient) recvRoutine() {
+func (d *Client) recvRoutine() {
 	type readData struct {
 		msg *rpc.CompleteRpcMessage
 		err error
@@ -108,16 +152,16 @@ func (d *drillClient) recvRoutine() {
 		})
 	}()
 
-	if d.opts.HeartbeatFreq == nil {
-		d.opts.HeartbeatFreq = new(time.Duration)
-		*d.opts.HeartbeatFreq = defaultHeartbeatFreq
+	if d.Opts.HeartbeatFreq == nil {
+		d.Opts.HeartbeatFreq = new(time.Duration)
+		*d.Opts.HeartbeatFreq = defaultHeartbeatFreq
 	}
 
-	if d.opts.HeartbeatFreq != nil && d.opts.HeartbeatFreq.Seconds() > 0 {
+	if d.Opts.HeartbeatFreq != nil && d.Opts.HeartbeatFreq.Seconds() > 0 {
 		var heartBeatCtx context.Context
 		heartBeatCtx, d.cancelHeartBeat = context.WithCancel(context.Background())
 		go func() {
-			ticker := time.NewTicker(*d.opts.HeartbeatFreq)
+			ticker := time.NewTicker(*d.Opts.HeartbeatFreq)
 			defer ticker.Stop()
 
 			for {
@@ -171,7 +215,7 @@ func (d *drillClient) recvRoutine() {
 	}
 }
 
-func (d *drillClient) passQueryResponse(data *rpc.CompleteRpcMessage, msg proto.Message) {
+func (d *Client) passQueryResponse(data *rpc.CompleteRpcMessage, msg proto.Message) {
 	d.sendAck(data.Header.GetCoordinationId(), true)
 	if err := proto.Unmarshal(data.ProtobufBody, msg); err != nil {
 		// do something
@@ -184,13 +228,13 @@ func (d *drillClient) passQueryResponse(data *rpc.CompleteRpcMessage, msg proto.
 	c.(chan *queryData) <- &queryData{data.Header.GetRpcType(), msg, data.GetRawBody()}
 }
 
-func (d *drillClient) nextCoordID() (next int32) {
+func (d *Client) nextCoordID() (next int32) {
 	next = d.coordID
 	d.coordID++
 	return
 }
 
-func (d *drillClient) sendCancel(qid *shared.QueryId) error {
+func (d *Client) sendCancel(qid *shared.QueryId) error {
 	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_CANCEL_QUERY, d.nextCoordID(), qid)
 	if err != nil {
 		return err
@@ -200,7 +244,7 @@ func (d *drillClient) sendCancel(qid *shared.QueryId) error {
 	return nil
 }
 
-func (d *drillClient) sendAck(coordID int32, isOk bool) {
+func (d *Client) sendAck(coordID int32, isOk bool) {
 	ack := &rpc.Ack{
 		Ok: &isOk,
 	}
@@ -213,7 +257,8 @@ func (d *drillClient) sendAck(coordID int32, isOk bool) {
 	d.outbound <- encoded
 }
 
-func (d *drillClient) Close() error {
+// Close the connection and cleanup the background goroutines
+func (d *Client) Close() error {
 	if d.close != nil {
 		close(d.close)
 		d.close = nil
@@ -226,7 +271,13 @@ func (d *drillClient) Close() error {
 	return nil
 }
 
-func (d *drillClient) ConnectEndpoint(ctx context.Context, e Drillbit) error {
+// ConnectEndpoint connects to the provided endpoint directly rather than looking for
+// drillbits via zookeeper. This is also used by the normal connect setup to connect
+// to the desired drillbit once it has been chosen from the zookeeper information.
+//
+// The provided context object will be passed to DialContext to control the deadlines
+// for the socket connection, it will not be saved into the client.
+func (d *Client) ConnectEndpoint(ctx context.Context, e Drillbit) error {
 	d.endpoint = e
 	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", d.endpoint.GetAddress()+":"+strconv.Itoa(int(d.endpoint.GetUserPort())))
 	if err != nil {
@@ -236,22 +287,26 @@ func (d *drillClient) ConnectEndpoint(ctx context.Context, e Drillbit) error {
 	conn.(*net.TCPConn).SetNoDelay(true)
 
 	d.conn = conn
-	d.coordID = int32(rand.Int()%1729 + 1)
 	if err = d.doHandshake(); err != nil {
 		return err
 	}
-
-	d.close = make(chan struct{})
-	d.outbound = make(chan []byte, 10)
-	d.pingpong = make(chan bool)
 
 	go d.recvRoutine()
 
 	return nil
 }
 
-func (d *drillClient) Connect(ctx context.Context) error {
-	zoo, err := NewZKHandler(d.opts.ClusterName, d.zkNodes...)
+// Connect attempts to use the current ZooKeeper cluster in order to find a drill bit
+// to connect to. This will also populate the internal listing of drill bits from zookeeper.
+//
+// As with ConnectEndpoint, the context provided will be passed to DialContext
+// and will not be stored in the client.
+func (d *Client) Connect(ctx context.Context) error {
+	if len(d.zkNodes) == 0 {
+		return errors.New("no zookeeper nodes specified")
+	}
+
+	zoo, err := newZKHandler(d.Opts.ClusterName, d.zkNodes...)
 	if err != nil {
 		return err
 	}
@@ -262,16 +317,22 @@ func (d *drillClient) Connect(ctx context.Context) error {
 		d.drillBits[i], d.drillBits[j] = d.drillBits[j], d.drillBits[i]
 	})
 
-	d.curBit = 0
-	return d.ConnectEndpoint(ctx, zoo.GetEndpoint(d.drillBits[d.curBit]))
+	d.nextBit = 1
+	return d.ConnectEndpoint(ctx, zoo.GetEndpoint(d.drillBits[0]))
 }
 
-func (d *drillClient) ConnectWithZK(ctx context.Context, zkNode ...string) error {
+// ConnectWithZK overrides the current stored zookeeper cluster in the client, and
+// uses the passed list of nodes to find a drillbit. This will replace the stored
+// zookeeper nodes in the client with the new set provided.
+//
+// As with ConnectEndpoint, the context provided will be passed to DialContext
+// and will not be stored in the client.
+func (d *Client) ConnectWithZK(ctx context.Context, zkNode ...string) error {
 	d.zkNodes = zkNode
 	return d.Connect(ctx)
 }
 
-func (d *drillClient) MakeMetaRequest() *user.ServerMeta {
+func (d *Client) MakeMetaRequest() *user.ServerMeta {
 	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_GET_SERVER_META, d.nextCoordID(), &user.GetServerMetaReq{})
 	if err != nil {
 		panic(err)
@@ -288,7 +349,10 @@ func (d *drillClient) MakeMetaRequest() *user.ServerMeta {
 	return resp.ServerMeta
 }
 
-func (d *drillClient) PrepareQuery(plan string) (driver.Stmt, error) {
+// PrepareQuery creates a prepared sql statement and returns a handle to it. This
+// handle can be used with any client connected to the same cluster in order to
+// actually execute it with ExecuteStmt.
+func (d *Client) PrepareQuery(plan string) (PreparedHandle, error) {
 	coord := d.nextCoordID()
 	req := &user.CreatePreparedStatementReq{SqlQuery: &plan}
 	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_CREATE_PREPARED_STATEMENT, coord, req)
@@ -305,6 +369,9 @@ func (d *drillClient) PrepareQuery(plan string) (driver.Stmt, error) {
 		return nil, errors.New("failed to read")
 	}
 
+	close(queryHandle)
+	d.queryMap.Delete(coord)
+
 	resp := &user.CreatePreparedStatementResp{}
 	if err = proto.Unmarshal(rsp.GetProtobufBody(), resp); err != nil {
 		return nil, err
@@ -314,10 +381,16 @@ func (d *drillClient) PrepareQuery(plan string) (driver.Stmt, error) {
 		return nil, fmt.Errorf("got error: %s", resp.GetError().GetMessage())
 	}
 
-	return &prepared{stmt: resp.PreparedStatement, client: d}, nil
+	return resp.PreparedStatement, nil
 }
 
-func (d *drillClient) SubmitQuery(t shared.QueryType, plan string) (*ResultHandle, error) {
+// SubmitQuery submits the specified query and query type returning a handle to the results
+// This only blocks long enough to receive a Query ID from the cluster, it does not
+// wait for the results to start coming in. The result handle can be used to do that.
+//
+// If the query fails, this will not error but rather you'd retrieve that failure from
+// the result handle itself.
+func (d *Client) SubmitQuery(t shared.QueryType, plan string) (*ResultHandle, error) {
 	query := &user.RunQuery{
 		ResultsMode: user.QueryResultsMode_STREAM_FULL.Enum(),
 		Type:        &t,
@@ -339,6 +412,9 @@ func (d *drillClient) SubmitQuery(t shared.QueryType, plan string) (*ResultHandl
 		return nil, errors.New("failed to read")
 	}
 
+	close(queryHandle)
+	d.queryMap.Delete(coord)
+
 	resp := &shared.QueryId{}
 	err = proto.Unmarshal(rsp.ProtobufBody, resp)
 
@@ -356,25 +432,25 @@ func (d *drillClient) SubmitQuery(t shared.QueryType, plan string) (*ResultHandl
 	}, nil
 }
 
-func (d *drillClient) doHandshake() error {
+func (d *Client) doHandshake() error {
 	u2b := user.UserToBitHandshake{
 		Channel:             shared.RpcChannel_USER.Enum(),
-		RpcVersion:          proto.Int32(drillRpcVersion),
+		RpcVersion:          proto.Int32(drillRPCVersion),
 		SupportListening:    proto.Bool(true),
 		SupportTimeout:      proto.Bool(true),
 		SaslSupport:         user.SaslSupport_SASL_PRIVACY.Enum(),
-		SupportComplexTypes: proto.Bool(d.opts.SupportComplexTypes),
+		SupportComplexTypes: proto.Bool(d.Opts.SupportComplexTypes),
 		ClientInfos: &user.RpcEndpointInfos{
 			Name:         proto.String(clientName),
 			Version:      proto.String(drillVersion),
-			Application:  &d.opts.ApplicationName,
+			Application:  &d.Opts.ApplicationName,
 			MajorVersion: proto.Uint32(drillMajorVersion),
 			MinorVersion: proto.Uint32(drillMinorVersion),
 			PatchVersion: proto.Uint32(drillPatchVersion),
 		},
 		Properties: &user.UserProperties{
 			Properties: []*user.Property{
-				{Key: proto.String("schema"), Value: &d.opts.Schema},
+				{Key: proto.String("schema"), Value: &d.Opts.Schema},
 			},
 		},
 	}
@@ -395,7 +471,7 @@ func (d *drillClient) doHandshake() error {
 		return err
 	}
 
-	if d.opts.SaslEncrypt != d.serverInfo.GetEncrypted() {
+	if d.Opts.SaslEncrypt != d.serverInfo.GetEncrypted() {
 		return errors.New("invalid security options")
 	}
 
@@ -403,11 +479,11 @@ func (d *drillClient) doHandshake() error {
 
 	switch d.serverInfo.GetStatus() {
 	case user.HandshakeStatus_SUCCESS:
-		if (len(d.opts.Auth) > 0 && d.opts.Auth != "plain") || d.opts.SaslEncrypt {
+		if (len(d.Opts.Auth) > 0 && d.Opts.Auth != "plain") || d.Opts.SaslEncrypt {
 			return fmt.Errorf("client wanted auth, but server didn't require it")
 		}
 	case user.HandshakeStatus_RPC_VERSION_MISMATCH:
-		return fmt.Errorf("invalid rpc version, expected: %d, actual %d", drillRpcVersion, d.serverInfo.GetRpcVersion())
+		return fmt.Errorf("invalid rpc version, expected: %d, actual %d", drillRPCVersion, d.serverInfo.GetRpcVersion())
 	case user.HandshakeStatus_AUTH_FAILED:
 		return fmt.Errorf("authentication failure")
 	case user.HandshakeStatus_UNKNOWN_FAILURE:
@@ -419,12 +495,17 @@ func (d *drillClient) doHandshake() error {
 	return nil
 }
 
-func (d *drillClient) handleAuth() error {
-	if ((len(d.opts.Auth) > 0 && d.opts.Auth != "plain") || d.opts.SaslEncrypt) && !d.serverInfo.GetEncrypted() {
+func (d *Client) handleAuth() error {
+	if ((len(d.Opts.Auth) > 0 && d.Opts.Auth != "plain") || d.Opts.SaslEncrypt) && !d.serverInfo.GetEncrypted() {
 		return fmt.Errorf("client wants encryption, server doesn't support encryption")
 	}
 
-	wrapper, err := sasl.NewSaslWrapper(d.opts.User, d.opts.ServiceName+"/"+d.endpoint.GetAddress(), sasl.SecurityProps{
+	host := d.Opts.ServiceHost
+	if d.Opts.ServiceHost == "_HOST" || d.Opts.ServiceHost == "" {
+		host = d.endpoint.GetAddress()
+	}
+
+	wrapper, err := sasl.NewSaslWrapper(d.Opts.User, d.Opts.ServiceName+"/"+host, sasl.SecurityProps{
 		MinSsf:        56,
 		MaxSsf:        math.MaxUint32,
 		MaxBufSize:    d.serverInfo.GetMaxWrappedSize(),
@@ -441,7 +522,7 @@ func (d *drillClient) handleAuth() error {
 	}
 
 	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
-		Mechanism: &d.opts.Auth,
+		Mechanism: &d.Opts.Auth,
 		Data:      token,
 		Status:    shared.SaslStatus_SASL_START.Enum(),
 	})
@@ -485,12 +566,19 @@ func (d *drillClient) handleAuth() error {
 	return nil
 }
 
-func (d *drillClient) ExecuteStmt(stmt *user.PreparedStatement) (*ResultHandle, error) {
+// ExecuteStmt runs the passed prepared statement against the cluster and returns
+// a handle to the results in the same way that SubmitQuery does.
+func (d *Client) ExecuteStmt(hndl PreparedHandle) (*ResultHandle, error) {
+	prep := hndl.(*user.PreparedStatement)
+	if prep == nil {
+		return nil, errors.New("invalid prepared statement handle")
+	}
+
 	coord := d.nextCoordID()
 	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, coord, &user.RunQuery{
 		ResultsMode:             user.QueryResultsMode_STREAM_FULL.Enum(),
 		Type:                    shared.QueryType_PREPARED_STATEMENT.Enum(),
-		PreparedStatementHandle: stmt.ServerHandle,
+		PreparedStatementHandle: prep.ServerHandle,
 	})
 	if err != nil {
 		log.Println(err)
@@ -504,6 +592,9 @@ func (d *drillClient) ExecuteStmt(stmt *user.PreparedStatement) (*ResultHandle, 
 	if !ok || rsp == nil {
 		return nil, errors.New("failed to read")
 	}
+
+	close(queryHandle)
+	d.queryMap.Delete(coord)
 
 	resp := &shared.QueryId{}
 	err = proto.Unmarshal(rsp.GetProtobufBody(), resp)
@@ -521,7 +612,9 @@ func (d *drillClient) ExecuteStmt(stmt *user.PreparedStatement) (*ResultHandle, 
 	}, nil
 }
 
-func (d *drillClient) Ping(ctx context.Context) error {
+// Ping sends a ping to the server via this connection and waits for a Pong response.
+// Returns database/sql/driver.ErrBadConn if it fails or nil if it succeeds.
+func (d *Client) Ping(ctx context.Context) error {
 	coord := d.nextCoordID()
 	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_PING, user.RpcType_ACK, coord, &rpc.Ack{Ok: proto.Bool(true)})
 	if err != nil {

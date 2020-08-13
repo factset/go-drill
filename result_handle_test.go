@@ -57,7 +57,7 @@ func getTestResultHandle() *ResultHandle {
 	}
 }
 
-var failed = &shared.QueryResult{
+var failureResult = &shared.QueryResult{
 	QueryId: &shared.QueryId{Part1: proto.Int64(2362793857957860714), Part2: proto.Int64(5294962225538573329)},
 	Error: []*shared.DrillPBError{
 		{
@@ -68,6 +68,10 @@ var failed = &shared.QueryResult{
 		},
 	},
 	QueryState: shared.QueryResult_FAILED.Enum(),
+}
+
+var cancelledResult = &shared.QueryResult{
+	QueryState: shared.QueryResult_CANCELED.Enum(),
 }
 
 func ExampleResultHandle_Next() {
@@ -128,7 +132,7 @@ func ExampleResultHandle_Next_queryfailed() {
 
 	go func() {
 		defer close(dc)
-		dc <- &queryData{typ: int32(user.RpcType_QUERY_RESULT), msg: failed}
+		dc <- &queryData{typ: int32(user.RpcType_QUERY_RESULT), msg: failureResult}
 	}()
 
 	_, err := rh.Next()
@@ -143,6 +147,24 @@ func ExampleResultHandle_Next_queryfailed() {
 	// Output:
 	// drill: query failed: Failure Error Test
 	// true
+}
+
+func ExampleResultHandle_Next_cancelled() {
+	dc := make(chan *queryData)
+	rh := &ResultHandle{dataChannel: dc}
+
+	go func() {
+		defer close(dc)
+		dc <- &queryData{typ: int32(user.RpcType_QUERY_RESULT), msg: cancelledResult}
+	}()
+
+	_, err := rh.Next()
+	if err == ErrQueryCancelled {
+		fmt.Println(err.Error())
+	}
+
+	// Output:
+	// drill: query cancelled
 }
 
 func ExampleResultHandle_GetRecordBatch() {
@@ -204,4 +226,30 @@ func TestClose(t *testing.T) {
 
 	_, ok = <-dataChannel
 	assert.False(t, ok)
+}
+
+func TestResultHandleNextNilResult(t *testing.T) {
+	dc := make(chan *queryData)
+	rh := &ResultHandle{dataChannel: dc}
+
+	go func() {
+		defer close(dc)
+		dc <- &queryData{typ: int32(user.RpcType_QUERY_RESULT), msg: (*shared.QueryResult)(nil)}
+	}()
+
+	_, err := rh.Next()
+	assert.Same(t, err, ErrQueryUnknownState)
+}
+
+func TestResultHandleNextUnknownState(t *testing.T) {
+	dc := make(chan *queryData)
+	rh := &ResultHandle{dataChannel: dc}
+
+	go func() {
+		defer close(dc)
+		dc <- &queryData{typ: int32(user.RpcType_QUERY_RESULT), msg: &shared.QueryResult{}}
+	}()
+
+	_, err := rh.Next()
+	assert.Same(t, err, ErrQueryUnknownState)
 }

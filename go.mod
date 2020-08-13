@@ -10,7 +10,7 @@ require (
 	github.com/jcmturner/gofork v1.0.0
 	github.com/jcmturner/gokrb5/v8 v8.4.1
 	github.com/jmoiron/sqlx v1.2.0
-	github.com/stretchr/testify v1.6.1 // indirect
+	github.com/stretchr/testify v1.6.1
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de // indirect
 	google.golang.org/protobuf v1.25.0
 )

@@ -2,9 +2,12 @@ package drill
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
 	"google.golang.org/protobuf/proto"
@@ -52,6 +55,19 @@ func getTestResultHandle() *ResultHandle {
 	return &ResultHandle{
 		dataChannel: dc,
 	}
+}
+
+var failed = &shared.QueryResult{
+	QueryId: &shared.QueryId{Part1: proto.Int64(2362793857957860714), Part2: proto.Int64(5294962225538573329)},
+	Error: []*shared.DrillPBError{
+		{
+			ErrorId:   proto.String("d4f3fffc-b200-4d28-8a77-bb02c54fada0"),
+			Endpoint:  nil,
+			ErrorType: shared.DrillPBError_VALIDATION.Enum(),
+			Message:   proto.String("Failure Error Test"),
+		},
+	},
+	QueryState: shared.QueryResult_FAILED.Enum(),
 }
 
 func ExampleResultHandle_Next() {
@@ -106,6 +122,29 @@ func ExampleResultHandle_Next() {
 	// true
 }
 
+func ExampleResultHandle_Next_queryfailed() {
+	dc := make(chan *queryData)
+	rh := &ResultHandle{dataChannel: dc}
+
+	go func() {
+		defer close(dc)
+		dc <- &queryData{typ: int32(user.RpcType_QUERY_RESULT), msg: failed}
+	}()
+
+	_, err := rh.Next()
+	if errors.Is(err, ErrQueryFailed) {
+		fmt.Println(err.Error())
+	}
+
+	// calling Next again with the closed channel just returns the same error
+	_, err2 := rh.Next()
+	fmt.Println(err.Error() == err2.Error())
+
+	// Output:
+	// drill: query failed: Failure Error Test
+	// true
+}
+
 func ExampleResultHandle_GetRecordBatch() {
 	// using sample nation data set from Drill repo
 	rh := getTestResultHandle()
@@ -131,4 +170,38 @@ func ExampleResultHandle_GetRecordBatch() {
 	// Col 2: N_REGIONKEY
 	// Col 3: N_COMMENT
 	// true
+}
+
+func ExampleResultHandle_GetCols() {
+	// using sample nation data set from Drill repo
+	rh := getTestResultHandle()
+
+	cols := rh.GetCols()
+	for _, c := range cols {
+		fmt.Println(c)
+	}
+
+	// Output:
+	// N_NATIONKEY
+	// N_NAME
+	// N_REGIONKEY
+	// N_COMMENT
+}
+
+func TestClose(t *testing.T) {
+	dataChannel := make(chan *queryData)
+	queryID := shared.QueryId{Part1: proto.Int64(1020), Part2: proto.Int64(-12030)}
+
+	testClient := &Client{}
+	testClient.resultMap.Store(qid{queryID.GetPart1(), queryID.GetPart2()}, dataChannel)
+
+	rh := ResultHandle{dataChannel: dataChannel, client: testClient, queryID: &queryID}
+
+	assert.Nil(t, rh.Close())
+
+	_, ok := testClient.resultMap.Load(qid{queryID.GetPart1(), queryID.GetPart2()})
+	assert.False(t, ok)
+
+	_, ok = <-dataChannel
+	assert.False(t, ok)
 }

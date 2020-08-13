@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/zeroshade/go-drill/internal/data"
+	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
 	"google.golang.org/protobuf/proto"
@@ -252,4 +254,28 @@ func TestResultHandleNextUnknownState(t *testing.T) {
 
 	_, err := rh.Next()
 	assert.Same(t, err, ErrQueryUnknownState)
+}
+
+func TestResultHandleCancel(t *testing.T) {
+	testDrillClient := &Client{outbound: make(chan []byte, 2)}
+
+	rh := &ResultHandle{
+		queryID: &shared.QueryId{Part1: proto.Int64(123456789), Part2: proto.Int64(9876543)},
+		client:  testDrillClient,
+	}
+
+	rh.Cancel()
+
+	encoded, ok := <-testDrillClient.outbound
+	assert.True(t, ok)
+
+	id := &shared.QueryId{}
+	hdr, err := data.DecodeRpcMessage(encoded, id)
+	assert.NoError(t, err)
+	assert.NotNil(t, hdr)
+
+	assert.EqualValues(t, user.RpcType_CANCEL_QUERY, hdr.GetRpcType())
+	assert.EqualValues(t, rpc.RpcMode_REQUEST, hdr.GetMode())
+	assert.EqualValues(t, rh.queryID.GetPart1(), id.GetPart1())
+	assert.EqualValues(t, rh.queryID.GetPart2(), id.GetPart2())
 }

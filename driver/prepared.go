@@ -58,9 +58,8 @@ func (p *prepared) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	var affectedRows int64 = 0
 	err = processWithCtx(ctx, handle, func(h *drill.ResultHandle) error {
 		var err error
-		for err = h.Next(); err != nil; err = h.Next() {
-			batch := h.GetRecordBatch()
-
+		var batch *drill.RecordBatch
+		for batch, err = h.Next(); err != nil; batch, err = h.Next() {
 			affectedRows += int64(batch.Def.GetAffectedRowsCount())
 		}
 
@@ -85,5 +84,8 @@ func (p *prepared) QueryContext(ctx context.Context, args []driver.NamedValue) (
 	}
 
 	r := &rows{handle: handle}
-	return r, processWithCtx(ctx, handle, func(h *drill.ResultHandle) error { return h.Next() })
+	return r, processWithCtx(ctx, handle, func(h *drill.ResultHandle) error {
+		_, err := h.Next()
+		return err
+	})
 }

@@ -133,26 +133,26 @@ var (
 // If there are no more record batches and the query did not complete successfully,
 // it will return either an error wrapping ErrQueryFailed, or one of the other
 // error types.
-func (r *ResultHandle) Next() error {
+func (r *ResultHandle) Next() (*RecordBatch, error) {
 	r.curBatch = nil
 	r.nextBatch()
 	if r.curBatch != nil {
-		return nil
+		return r.curBatch, nil
 	}
 
 	if r.queryResult == nil {
-		return ErrQueryUnknownState
+		return nil, ErrQueryUnknownState
 	}
 
 	switch r.queryResult.GetQueryState() {
 	case shared.QueryResult_COMPLETED:
-		return io.EOF
+		return nil, io.EOF
 	case shared.QueryResult_CANCELED:
-		return ErrQueryCancelled
+		return nil, ErrQueryCancelled
 	case shared.QueryResult_FAILED:
-		return fmt.Errorf("%w: %s", ErrQueryFailed, r.queryResult.GetError()[0].GetMessage())
+		return nil, fmt.Errorf("%w: %s", ErrQueryFailed, r.queryResult.GetError()[0].GetMessage())
 	default:
-		return ErrQueryUnknownState
+		return nil, ErrQueryUnknownState
 	}
 }
 
@@ -163,6 +163,12 @@ func (r *ResultHandle) nextBatch() {
 		// if the channel is closed then there's nothing more we can do here
 		return
 	}
+
+	// b, _ := proto.Marshal(q.msg)
+	// fmt.Println(q.typ)
+	// fmt.Println(q.msg)
+	// fmt.Println(hex.EncodeToString(b))
+	// fmt.Println(hex.EncodeToString(q.raw))
 
 	switch q.typ {
 	case int32(user.RpcType_QUERY_DATA):

@@ -29,13 +29,13 @@ func (r *rows) Next(dest []driver.Value) error {
 	}
 
 	if int32(r.curRow) >= rb.Def.GetRecordCount() {
-		err := r.handle.Next()
+		var err error
+		rb, err = r.handle.Next()
 		if err != nil {
 			return err
 		}
 
 		r.curRow = 0
-		rb = r.handle.GetRecordBatch()
 	}
 
 	for i := range dest {

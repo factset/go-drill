@@ -12,6 +12,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+//go:generate go run ../cmd/tmpl -data numeric.tmpldata vector_numeric.gen.go.tmpl type_traits_numeric.gen.go.tmpl numeric_vec_typemap.gen.go.tmpl
+
 type DataVector interface {
 	Len() int
 	Value(index uint) interface{}
@@ -76,43 +78,70 @@ func (nb *NullableBitVector) Get(index uint) *bool {
 }
 
 func (nb *NullableBitVector) Value(index uint) interface{} {
-	return nb.Get(index)
+	val := nb.Get(index)
+	if val != nil {
+		return *val
+	}
+	return val
 }
 
-type VarcharVector struct {
+type VarbinaryVector struct {
 	offsets []uint32
 	data    []byte
 
 	meta *shared.SerializedField
 }
 
+func (VarbinaryVector) Type() reflect.Type {
+	return reflect.TypeOf([]byte{})
+}
+
+func (VarbinaryVector) TypeLen() (int64, bool) {
+	return math.MaxInt64, true
+}
+
+func (v *VarbinaryVector) Len() int {
+	return int(v.meta.GetValueCount())
+}
+
+func (v *VarbinaryVector) Get(index uint) []byte {
+	return v.data[v.offsets[index]:v.offsets[index+1]]
+}
+
+func (v *VarbinaryVector) Value(index uint) interface{} {
+	return v.Get(index)
+}
+
+type VarcharVector struct {
+	*VarbinaryVector
+}
+
 func (VarcharVector) Type() reflect.Type {
 	return reflect.TypeOf(string(""))
 }
 
-func (VarcharVector) TypeLen() (int64, bool) {
-	return math.MaxInt64, true
-}
-
-func (v *VarcharVector) Len() int {
-	return int(v.meta.GetValueCount())
-}
-
-func (v *VarcharVector) Get(index uint) []byte {
-	return v.data[v.offsets[index]:v.offsets[index+1]]
-}
-
-func (v *VarcharVector) GetString(index uint) string {
-	b := v.Get(index)
+func (v *VarcharVector) Get(index uint) string {
+	b := v.VarbinaryVector.Get(index)
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-func (v *VarcharVector) Value(index uint) interface{} {
-	return v.Get(index)
-}
+func NewVarbinaryVector(data []byte, meta *shared.SerializedField) *VarbinaryVector {
+	if data == nil {
+		return &VarbinaryVector{
+			offsets: []uint32{},
+			data:    []byte{},
+			meta:    meta,
+		}
+	}
 
-func NewVarcharVector(data []byte, meta *shared.SerializedField) *VarcharVector {
-	offsetBytesSize := meta.Child[1].Child[0].GetBufferLength()
+	var offsetField *shared.SerializedField
+	if meta.MajorType.GetMode() == common.DataMode_REQUIRED {
+		offsetField = meta.Child[0]
+	} else {
+		offsetField = meta.Child[1].Child[0]
+	}
+
+	offsetBytesSize := offsetField.GetBufferLength()
 	offsetBytes := data[:offsetBytesSize]
 	remaining := data[offsetBytesSize:]
 
@@ -121,11 +150,15 @@ func NewVarcharVector(data []byte, meta *shared.SerializedField) *VarcharVector 
 		offsetList[i] = binary.LittleEndian.Uint32(offsetBytes[i*4:])
 	}
 
-	return &VarcharVector{
+	return &VarbinaryVector{
 		offsets: offsetList,
 		data:    remaining,
 		meta:    meta,
 	}
+}
+
+func NewVarcharVector(data []byte, meta *shared.SerializedField) *VarcharVector {
+	return &VarcharVector{NewVarbinaryVector(data, meta)}
 }
 
 type NullableVarcharVector struct {
@@ -138,16 +171,12 @@ func (nv *NullableVarcharVector) IsNull(index uint) bool {
 	return nv.byteMap[index] == 0
 }
 
-func (nv *NullableVarcharVector) Get(index uint) []byte {
+func (nv *NullableVarcharVector) Get(index uint) *string {
 	if nv.IsNull(index) {
 		return nil
 	}
 
-	return nv.VarcharVector.Get(index)
-}
-
-func (nv *NullableVarcharVector) GetString(index uint) *string {
-	b := nv.Get(index)
+	b := nv.VarbinaryVector.Get(index)
 	return (*string)(unsafe.Pointer(&b))
 }
 
@@ -223,6 +252,8 @@ func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 	}
 
 	switch meta.GetMajorType().GetMinorType() {
+	case common.MinorType_VARBINARY:
+		return NewVarbinaryVector(rawData, meta)
 	case common.MinorType_BIT:
 		return NewBitVector(rawData, meta)
 	case common.MinorType_TIMESTAMP:

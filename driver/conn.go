@@ -52,6 +52,11 @@ type conn struct {
 	drill.Conn
 }
 
+func (c *conn) CheckNamedValue(nv *driver.NamedValue) error {
+	log.Println(*nv)
+	return nil
+}
+
 func (c *conn) Begin() (driver.Tx, error) {
 	return nil, errors.New("not implemented")
 }
@@ -77,9 +82,8 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	var affectedRows int64 = 0
 	err = processWithCtx(ctx, handle, func(h *drill.ResultHandle) error {
 		var err error
-		for err = h.Next(); err != nil; err = h.Next() {
-			batch := h.GetRecordBatch()
-
+		var batch *drill.RecordBatch
+		for batch, err = h.Next(); err != nil; batch, err = h.Next() {
 			affectedRows += int64(batch.Def.GetAffectedRowsCount())
 		}
 
@@ -105,5 +109,8 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 	}
 
 	r := &rows{handle: handle}
-	return r, processWithCtx(ctx, handle, func(h *drill.ResultHandle) error { return h.Next() })
+	return r, processWithCtx(ctx, handle, func(h *drill.ResultHandle) error {
+		_, err := h.Next()
+		return err
+	})
 }

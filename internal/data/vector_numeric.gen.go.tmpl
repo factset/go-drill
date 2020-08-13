@@ -34,6 +34,13 @@ func (v *{{.Name}}Vector) Value(index uint) interface{} {
   return v.Get(index)
 }
 
+func New{{.Name}}VectorWithValues(data []{{.name}}, meta *shared.SerializedField) *{{.Name}}Vector {
+  return &{{.Name}}Vector{
+    values: data,
+    meta: meta,
+  }
+}
+
 func New{{.Name}}Vector(data []byte, meta *shared.SerializedField) *{{.Name}}Vector {
   return &{{.Name}}Vector{
     values: {{.Name}}Traits.CastFromBytes(data),
@@ -58,7 +65,12 @@ func (nv *Nullable{{.Name}}Vector) Get(index uint) *{{.name}} {
 }
 
 func (nv *Nullable{{.Name}}Vector) Value(index uint) interface{} {
-  return nv.Get(index)
+  val := nv.Get(index)
+  if val != nil {
+    return *val
+  }
+
+  return val
 }
 
 func NewNullable{{.Name}}Vector(data []byte, meta *shared.SerializedField) *Nullable{{.Name}}Vector {

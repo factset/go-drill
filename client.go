@@ -99,31 +99,31 @@ func NewDrillClient(opts Options, zk ...string) *Client {
 // and zookeeper cluster as the current Client, just picking a different endpoint
 // to connect to.
 func (d *Client) NewConnection(ctx context.Context) (Conn, error) {
-	c := NewDrillClient(d.Opts, d.zkNodes...)
+	newClient := NewDrillClient(d.Opts, d.zkNodes...)
 
 	if len(d.drillBits) == 0 {
-		err := c.Connect(ctx)
-		d.drillBits = c.drillBits
-		d.nextBit = c.nextBit
-		return c, err
+		err := newClient.Connect(ctx)
+		d.drillBits = newClient.drillBits
+		d.nextBit = newClient.nextBit
+		return newClient, err
 	}
 
-	c.drillBits = d.drillBits
+	newClient.drillBits = d.drillBits
 	eindex := d.nextBit
 	d.nextBit++
-	if d.nextBit >= len(c.drillBits) {
+	if d.nextBit >= len(newClient.drillBits) {
 		d.nextBit = 0
 	}
 
-	c.nextBit = d.nextBit
+	newClient.nextBit = d.nextBit
 
-	zook, err := newZKHandler(c.Opts.ClusterName, c.zkNodes...)
+	zook, err := newZKHandler(newClient.Opts.ClusterName, newClient.zkNodes...)
 	if err != nil {
 		return nil, err
 	}
 	defer zook.Close()
 
-	return c, c.ConnectEndpoint(ctx, zook.GetEndpoint(c.drillBits[eindex]))
+	return newClient, newClient.ConnectEndpoint(ctx, zook.GetEndpoint(newClient.drillBits[eindex]))
 }
 
 func (d *Client) recvRoutine() {
@@ -188,10 +188,12 @@ func (d *Client) recvRoutine() {
 		case encoded := <-d.outbound:
 			_, err := d.conn.Write(makePrefixedMessage(encoded))
 			if err != nil {
-				// do something
+				d.Close()
+				return
 			}
 		case data := <-inbound:
 			if data.err != nil {
+				log.Println("drill: read error: ", data.err)
 				d.Close()
 				return
 			}
@@ -206,7 +208,7 @@ func (d *Client) recvRoutine() {
 			case int32(user.RpcType_QUERY_HANDLE):
 				c, ok := d.queryMap.Load(data.msg.Header.GetCoordinationId())
 				if !ok {
-					// do something with error
+					log.Println("Couldn't find query channel for response")
 				}
 
 				c.(chan *rpc.CompleteRpcMessage) <- data.msg
@@ -222,7 +224,7 @@ func (d *Client) recvRoutine() {
 func (d *Client) passQueryResponse(data *rpc.CompleteRpcMessage, msg proto.Message) {
 	d.sendAck(data.Header.GetCoordinationId(), true)
 	if err := proto.Unmarshal(data.ProtobufBody, msg); err != nil {
-		// do something
+		panic("couldn't unmarshal the query data")
 	}
 
 	qidField := msg.ProtoReflect().Descriptor().Fields().ByName("query_id")

@@ -270,3 +270,69 @@ func TestNewConnection(t *testing.T) {
 	assert.EqualValues(t, cl.drillBits, nc.(*Client).drillBits)
 	assert.EqualValues(t, cl.nextBit, nc.(*Client).nextBit)
 }
+
+func TestClientNewConnectionZKFail(t *testing.T) {
+	defer func(orig func(string, ...string) (*zkHandler, error)) {
+		createZKHandler = orig
+	}(createZKHandler)
+
+	createZKHandler = func(clst string, nodes ...string) (*zkHandler, error) {
+		return nil, assert.AnError
+	}
+
+	cl := NewClient(Options{}, "a", "b", "c")
+	cl.drillBits = []string{"bit1", "bit2", "bit3"}
+	cl.nextBit = 1
+
+	nc, err := cl.NewConnection(context.Background())
+	assert.Same(t, assert.AnError, err)
+	assert.Equal(t, 2, cl.nextBit)
+	assert.Nil(t, nc)
+}
+
+func TestClientNewConnectionNextBit(t *testing.T) {
+	heartbeat := time.Second * 5
+	opts := Options{
+		Schema:        "foobar",
+		SaslEncrypt:   true,
+		HeartbeatFreq: &heartbeat,
+		ClusterName:   "cluster",
+	}
+
+	defer func(orig func(string, ...string) (*zkHandler, error)) {
+		createZKHandler = orig
+	}(createZKHandler)
+
+	mzk := new(mockzk)
+	mzk.Test(t)
+	defer mzk.AssertExpectations(t)
+
+	createZKHandler = func(clst string, nodes ...string) (*zkHandler, error) {
+		assert.Equal(t, "cluster", clst)
+		assert.ElementsMatch(t, []string{"a", "b", "c"}, nodes)
+		return &zkHandler{conn: mzk, Path: "/drill/drill"}, nil
+	}
+
+	service := &exec.DrillServiceInstance{
+		Id: proto.String("bit3"),
+		Endpoint: &exec.DrillbitEndpoint{
+			Address:  proto.String("foobar"),
+			UserPort: proto.Int32(2020),
+		},
+	}
+
+	data, _ := proto.Marshal(service)
+	mzk.On("Get", "/drill/drill/bit3").Return(data, (*zk.Stat)(nil), nil).Once()
+	mzk.On("Close").Once()
+
+	cl := NewClient(opts, "a", "b", "c")
+	cl.drillBits = []string{"bit1", "bit2", "bit3"}
+	cl.nextBit = 2
+
+	nc, err := cl.NewConnection(context.Background())
+	assert.Error(t, err)
+
+	assert.Equal(t, 0, cl.nextBit)
+	assert.Equal(t, 0, nc.(*Client).nextBit)
+	assert.Equal(t, cl.drillBits, nc.(*Client).drillBits)
+}

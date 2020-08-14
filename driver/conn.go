@@ -52,11 +52,6 @@ type conn struct {
 	drill.Conn
 }
 
-func (c *conn) CheckNamedValue(nv *driver.NamedValue) error {
-	log.Println(*nv)
-	return nil
-}
-
 func (c *conn) Begin() (driver.Tx, error) {
 	return nil, errors.New("not implemented")
 }

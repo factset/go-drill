@@ -37,18 +37,13 @@ func (d *Client) doHandshake() error {
 		},
 	}
 
-	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_HANDSHAKE, d.nextCoordID(), &u2b)
-	if err != nil {
-		return err
-	}
-
-	_, err = d.conn.Write(makePrefixedMessage(encoded))
+	_, err := d.dataEncoder.Write(d.conn, rpc.RpcMode_REQUEST, user.RpcType_HANDSHAKE, d.nextCoordID(), &u2b)
 	if err != nil {
 		return err
 	}
 
 	d.serverInfo = &user.BitToUserHandshake{}
-	_, err = readPrefixedMessage(d.conn, d.serverInfo)
+	_, err = d.dataEncoder.ReadMsg(d.conn, d.serverInfo)
 	if err != nil {
 		return err
 	}
@@ -62,20 +57,22 @@ func (d *Client) doHandshake() error {
 	switch d.serverInfo.GetStatus() {
 	case user.HandshakeStatus_SUCCESS:
 		if (len(d.Opts.Auth) > 0 && d.Opts.Auth != "plain") || d.Opts.SaslEncrypt {
-			return fmt.Errorf("client wanted auth, but server didn't require it")
+			return errors.New("client wanted auth, but server didn't require it")
 		}
 	case user.HandshakeStatus_RPC_VERSION_MISMATCH:
-		return fmt.Errorf("invalid rpc version, expected: %d, actual %d", drillRPCVersion, d.serverInfo.GetRpcVersion())
+		return fmt.Errorf("invalid rpc version, expected: %d, actual: %d", drillRPCVersion, d.serverInfo.GetRpcVersion())
 	case user.HandshakeStatus_AUTH_FAILED:
-		return fmt.Errorf("authentication failure")
+		return errors.New("authentication failure")
 	case user.HandshakeStatus_UNKNOWN_FAILURE:
-		return fmt.Errorf("unknown handshake failure")
+		return errors.New("unknown handshake failure")
 	case user.HandshakeStatus_AUTH_REQUIRED:
 		return d.handleAuth()
 	}
 
 	return nil
 }
+
+var createSasl = sasl.NewSaslWrapper
 
 func (d *Client) handleAuth() error {
 	if ((len(d.Opts.Auth) > 0 && d.Opts.Auth != "plain") || d.Opts.SaslEncrypt) && !d.serverInfo.GetEncrypted() {
@@ -87,7 +84,7 @@ func (d *Client) handleAuth() error {
 		host = d.endpoint.GetAddress()
 	}
 
-	wrapper, err := sasl.NewSaslWrapper(d.Opts.User, d.Opts.ServiceName+"/"+host, sasl.SecurityProps{
+	wrapper, err := createSasl(d.Opts.User, d.Opts.ServiceName+"/"+host, sasl.SecurityProps{
 		MinSsf:        56,
 		MaxSsf:        math.MaxUint32,
 		MaxBufSize:    d.serverInfo.GetMaxWrappedSize(),
@@ -103,19 +100,14 @@ func (d *Client) handleAuth() error {
 		return err
 	}
 
-	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
+	d.dataEncoder.Write(d.conn, rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
 		Mechanism: &d.Opts.Auth,
 		Data:      token,
 		Status:    shared.SaslStatus_SASL_START.Enum(),
 	})
-	if err != nil {
-		return err
-	}
-
-	d.conn.Write(makePrefixedMessage(encoded))
 
 	saslResp := &shared.SaslMessage{}
-	_, err = readPrefixedMessage(d.conn, saslResp)
+	_, err = d.dataEncoder.ReadMsg(d.conn, saslResp)
 	if err != nil {
 		return err
 	}
@@ -131,13 +123,12 @@ func (d *Client) handleAuth() error {
 			encodeStatus = shared.SaslStatus_SASL_SUCCESS.Enum()
 		}
 
-		encoded, err = encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
+		d.dataEncoder.Write(d.conn, rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
 			Data:   token,
 			Status: encodeStatus,
 		})
 
-		d.conn.Write(makePrefixedMessage(encoded))
-		_, err = readPrefixedMessage(d.conn, saslResp)
+		_, err = d.dataEncoder.ReadMsg(d.conn, saslResp)
 		if err != nil {
 			return err
 		}

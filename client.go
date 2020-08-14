@@ -61,13 +61,15 @@ type Client struct {
 	// it will only affect future connections of this client.
 	Opts Options
 
-	conn      net.Conn
+	conn net.Conn
+
 	drillBits []string
 	nextBit   int
 	coordID   int32
 	endpoint  Drillbit
 	zkNodes   []string
 
+	dataEncoder     encoder
 	serverInfo      *user.BitToUserHandshake
 	cancelHeartBeat context.CancelFunc
 
@@ -82,12 +84,13 @@ type Client struct {
 // actually connect yet. It also allows specifying the zookeeper cluster nodes here.
 func NewClient(opts Options, zk ...string) *Client {
 	return &Client{
-		close:    make(chan struct{}),
-		outbound: make(chan []byte, 10),
-		pingpong: make(chan bool),
-		coordID:  int32(rand.Int()%1729 + 1),
-		zkNodes:  zk,
-		Opts:     opts,
+		close:       make(chan struct{}),
+		outbound:    make(chan []byte, 10),
+		pingpong:    make(chan bool),
+		coordID:     int32(rand.Int()%1729 + 1),
+		zkNodes:     zk,
+		dataEncoder: rpcEncoder{},
+		Opts:        opts,
 	}
 }
 
@@ -134,7 +137,7 @@ func (d *Client) recvRoutine() {
 	inbound := make(chan readData)
 	go func() {
 		for {
-			msg, err := readPrefixedRaw(d.conn)
+			msg, err := d.dataEncoder.ReadRaw(d.conn)
 			if err != nil {
 				inbound <- readData{err: err}
 				break
@@ -185,7 +188,7 @@ func (d *Client) recvRoutine() {
 		case <-d.close:
 			return
 		case encoded := <-d.outbound:
-			_, err := d.conn.Write(makePrefixedMessage(encoded))
+			_, err := d.dataEncoder.WriteRaw(d.conn, encoded)
 			if err != nil {
 				d.Close()
 				return

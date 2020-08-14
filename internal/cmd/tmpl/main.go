@@ -42,7 +42,7 @@ func parsePath(path string) (string, string) {
 	p := strings.IndexByte(path, '=')
 	if p == -1 {
 		if filepath.Ext(path) != ".tmpl" {
-			log.Fatal("template file '%s' must have .tmpl extension", path)
+			log.Fatalf("template file '%s' must have .tmpl extension", path)
 		}
 		return path, path[:len(path)-len(".tmpl")]
 	}

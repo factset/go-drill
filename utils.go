@@ -4,11 +4,41 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"net"
 
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
 	"google.golang.org/protobuf/proto"
 )
+
+type encoder interface {
+	WriteRaw(net.Conn, []byte) (int, error)
+	Write(net.Conn, rpc.RpcMode, user.RpcType, int32, proto.Message) (int, error)
+	ReadMsg(net.Conn, proto.Message) (*rpc.RpcHeader, error)
+	ReadRaw(net.Conn) (*rpc.CompleteRpcMessage, error)
+}
+
+type rpcEncoder struct{}
+
+func (rpcEncoder) WriteRaw(conn net.Conn, b []byte) (int, error) {
+	return conn.Write(makePrefixedMessage(b))
+}
+
+func (rpcEncoder) Write(conn net.Conn, mode rpc.RpcMode, typ user.RpcType, coord int32, msg proto.Message) (int, error) {
+	encoded, err := encodeRPCMessage(mode, typ, coord, msg)
+	if err != nil {
+		return 0, err
+	}
+	return conn.Write(makePrefixedMessage(encoded))
+}
+
+func (rpcEncoder) ReadRaw(conn net.Conn) (*rpc.CompleteRpcMessage, error) {
+	return readPrefixedRaw(conn)
+}
+
+func (rpcEncoder) ReadMsg(conn net.Conn, msg proto.Message) (*rpc.RpcHeader, error) {
+	return readPrefixedMessage(conn, msg)
+}
 
 var errInvalidResponse = errors.New("invalid response")
 

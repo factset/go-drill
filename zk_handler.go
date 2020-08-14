@@ -10,8 +10,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type zkconn interface {
+	Get(path string) ([]byte, *zk.Stat, error)
+	Children(path string) ([]string, *zk.Stat, error)
+	Close()
+}
+
 type zkHandler struct {
-	conn *zk.Conn
+	conn zkconn
 
 	Nodes      []string
 	Path       string
@@ -25,7 +31,8 @@ type zkHandler struct {
 // to the drill meta data information.
 func newZKHandler(cluster string, nodes ...string) (*zkHandler, error) {
 	hdlr := &zkHandler{Connecting: true, Nodes: zk.FormatServers(nodes), Path: "/drill/" + cluster}
-	cn, _, err := zk.Connect(hdlr.Nodes, 30*time.Second, zk.WithEventCallback(func(ev zk.Event) {
+	var err error
+	hdlr.conn, _, err = zk.Connect(hdlr.Nodes, 30*time.Second, zk.WithEventCallback(func(ev zk.Event) {
 		switch ev.Type {
 		case zk.EventSession:
 			switch ev.State {
@@ -48,19 +55,7 @@ func newZKHandler(cluster string, nodes ...string) (*zkHandler, error) {
 		return nil, err
 	}
 
-	hdlr.conn = cn
 	return hdlr, nil
-}
-
-// Error will return the last error that the zookeeper handler encountered.
-func (z *zkHandler) Error() error {
-	return z.Err
-}
-
-// IsConnecting will return true until a connection has been established
-// or failed.
-func (z *zkHandler) IsConnecting() bool {
-	return z.Connecting
 }
 
 // GetDrillBits returns the list of drillbit names that can in turn be passed to
@@ -81,11 +76,13 @@ func (z *zkHandler) GetEndpoint(drillbit string) Drillbit {
 	data, _, err := z.conn.Get(z.Path + "/" + drillbit)
 	if err != nil {
 		z.Err = err
+		return nil
 	}
 
 	drillServer := exec.DrillServiceInstance{}
 	if err = proto.Unmarshal(data, &drillServer); err != nil {
 		z.Err = err
+		return nil
 	}
 
 	log.Printf("%+v\n", drillServer.String())

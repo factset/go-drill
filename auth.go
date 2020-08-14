@@ -76,7 +76,7 @@ var createSasl = sasl.NewSaslWrapper
 
 func (d *Client) handleAuth() error {
 	if ((len(d.Opts.Auth) > 0 && d.Opts.Auth != "plain") || d.Opts.SaslEncrypt) && !d.serverInfo.GetEncrypted() {
-		return fmt.Errorf("client wants encryption, server doesn't support encryption")
+		return errors.New("client wants encryption, server doesn't support encryption")
 	}
 
 	host := d.Opts.ServiceHost

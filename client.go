@@ -94,6 +94,8 @@ func NewClient(opts Options, zk ...string) *Client {
 	}
 }
 
+var createZKHandler = newZKHandler
+
 // NewConnection will use the stored zookeeper quorum nodes and drill bit information
 // to find the next drill bit to connect to in order to spread out the load.
 //
@@ -119,7 +121,7 @@ func (d *Client) NewConnection(ctx context.Context) (Conn, error) {
 
 	newClient.nextBit = d.nextBit
 
-	zook, err := newZKHandler(newClient.Opts.ClusterName, newClient.zkNodes...)
+	zook, err := createZKHandler(newClient.Opts.ClusterName, newClient.zkNodes...)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +316,7 @@ func (d *Client) Connect(ctx context.Context) error {
 		return errors.New("no zookeeper nodes specified")
 	}
 
-	zoo, err := newZKHandler(d.Opts.ClusterName, d.zkNodes...)
+	zoo, err := createZKHandler(d.Opts.ClusterName, d.zkNodes...)
 	if err != nil {
 		return err
 	}

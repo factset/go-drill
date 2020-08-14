@@ -3,7 +3,6 @@ package drill
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
 
 	"github.com/jcmturner/gokrb5/v8/gssapi"
@@ -51,8 +50,6 @@ func (d *Client) doHandshake() error {
 	if d.Opts.SaslEncrypt != d.serverInfo.GetEncrypted() {
 		return errors.New("invalid security options")
 	}
-
-	log.Println("AuthMechs: ", d.serverInfo.GetAuthenticationMechanisms())
 
 	switch d.serverInfo.GetStatus() {
 	case user.HandshakeStatus_SUCCESS:

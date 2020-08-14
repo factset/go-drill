@@ -67,5 +67,5 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 		}
 	}
 
-	return &Connector{base: drill.NewDrillClient(opts, zknodes...)}, nil
+	return &Connector{base: drill.NewClient(opts, zknodes...)}, nil
 }

@@ -2,15 +2,21 @@ package drill
 
 import (
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"io"
 
-	"github.com/zeroshade/go-drill/internal/data"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
+	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
 	"google.golang.org/protobuf/proto"
 )
 
+var errInvalidResponse = errors.New("invalid response")
+
 func makePrefixedMessage(data []byte) []byte {
+	if data == nil {
+		return nil
+	}
+
 	buf := make([]byte, binary.MaxVarintLen32)
 	nbytes := binary.PutUvarint(buf, uint64(len(data)))
 	return append(buf[:nbytes], data...)
@@ -30,7 +36,7 @@ func readPrefixed(r io.Reader) ([]byte, error) {
 	// if we got an empty message and read too many bytes we're screwed
 	// but this shouldn't happen anyways, just in case
 	if vlength < 1 || vlength+int(respLength) < n {
-		return nil, fmt.Errorf("invalid response")
+		return nil, errInvalidResponse
 	}
 
 	respBytes := make([]byte, respLength)
@@ -51,7 +57,7 @@ func readPrefixedRaw(r io.Reader) (*rpc.CompleteRpcMessage, error) {
 		return nil, err
 	}
 
-	return data.GetRawRPCMessage(respBytes)
+	return getRawRPCMessage(respBytes)
 }
 
 func readPrefixedMessage(r io.Reader, msg proto.Message) (*rpc.RpcHeader, error) {
@@ -60,5 +66,42 @@ func readPrefixedMessage(r io.Reader, msg proto.Message) (*rpc.RpcHeader, error)
 		return nil, err
 	}
 
-	return data.DecodeRpcMessage(respBytes, msg)
+	return decodeRPCMessage(respBytes, msg)
+}
+
+func encodeRPCMessage(mode rpc.RpcMode, msgType user.RpcType, coordID int32, msg proto.Message) ([]byte, error) {
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	rpcMsg := &rpc.CompleteRpcMessage{
+		Header: &rpc.RpcHeader{
+			Mode:           &mode,
+			CoordinationId: &coordID,
+			RpcType:        proto.Int32(int32(msgType)),
+		},
+		ProtobufBody: data,
+	}
+
+	return proto.Marshal(rpcMsg)
+}
+
+func getRawRPCMessage(data []byte) (*rpc.CompleteRpcMessage, error) {
+	rpcMsg := &rpc.CompleteRpcMessage{}
+	if err := proto.Unmarshal(data, rpcMsg); err != nil {
+		return nil, err
+	}
+
+	return rpcMsg, nil
+}
+
+func decodeRPCMessage(data []byte, msg proto.Message) (*rpc.RpcHeader, error) {
+	rpcMsg, err := getRawRPCMessage(data)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := rpcMsg.GetHeader()
+	return ret, proto.Unmarshal(rpcMsg.ProtobufBody, msg)
 }

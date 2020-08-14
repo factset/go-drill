@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zeroshade/go-drill/internal/data"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
@@ -79,9 +78,9 @@ type Client struct {
 	close     chan struct{}
 }
 
-// NewDrillClient initializes a Drill Client with the given options but does not
+// NewClient initializes a Drill Client with the given options but does not
 // actually connect yet. It also allows specifying the zookeeper cluster nodes here.
-func NewDrillClient(opts Options, zk ...string) *Client {
+func NewClient(opts Options, zk ...string) *Client {
 	return &Client{
 		close:    make(chan struct{}),
 		outbound: make(chan []byte, 10),
@@ -99,7 +98,7 @@ func NewDrillClient(opts Options, zk ...string) *Client {
 // and zookeeper cluster as the current Client, just picking a different endpoint
 // to connect to.
 func (d *Client) NewConnection(ctx context.Context) (Conn, error) {
-	newClient := NewDrillClient(d.Opts, d.zkNodes...)
+	newClient := NewClient(d.Opts, d.zkNodes...)
 
 	if len(d.drillBits) == 0 {
 		err := newClient.Connect(ctx)
@@ -241,7 +240,7 @@ func (d *Client) nextCoordID() (next int32) {
 }
 
 func (d *Client) sendCancel(qid *shared.QueryId) error {
-	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_CANCEL_QUERY, d.nextCoordID(), qid)
+	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_CANCEL_QUERY, d.nextCoordID(), qid)
 	if err != nil {
 		return err
 	}
@@ -255,7 +254,7 @@ func (d *Client) sendAck(coordID int32, isOk bool) {
 		Ok: &isOk,
 	}
 
-	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_RESPONSE, user.RpcType_ACK, coordID, ack)
+	encoded, err := encodeRPCMessage(rpc.RpcMode_RESPONSE, user.RpcType_ACK, coordID, ack)
 	if err != nil {
 		panic(err)
 	}
@@ -339,7 +338,7 @@ func (d *Client) ConnectWithZK(ctx context.Context, zkNode ...string) error {
 }
 
 func (d *Client) MakeMetaRequest() *user.ServerMeta {
-	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_GET_SERVER_META, d.nextCoordID(), &user.GetServerMetaReq{})
+	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_GET_SERVER_META, d.nextCoordID(), &user.GetServerMetaReq{})
 	if err != nil {
 		panic(err)
 	}
@@ -361,7 +360,7 @@ func (d *Client) MakeMetaRequest() *user.ServerMeta {
 func (d *Client) PrepareQuery(plan string) (PreparedHandle, error) {
 	coord := d.nextCoordID()
 	req := &user.CreatePreparedStatementReq{SqlQuery: &plan}
-	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_CREATE_PREPARED_STATEMENT, coord, req)
+	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_CREATE_PREPARED_STATEMENT, coord, req)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +403,7 @@ func (d *Client) SubmitQuery(t shared.QueryType, plan string) (*ResultHandle, er
 	}
 
 	coord := d.nextCoordID()
-	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, coord, query)
+	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, coord, query)
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +446,7 @@ func (d *Client) ExecuteStmt(hndl PreparedHandle) (*ResultHandle, error) {
 	}
 
 	coord := d.nextCoordID()
-	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, coord, &user.RunQuery{
+	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, coord, &user.RunQuery{
 		ResultsMode:             user.QueryResultsMode_STREAM_FULL.Enum(),
 		Type:                    shared.QueryType_PREPARED_STATEMENT.Enum(),
 		PreparedStatementHandle: prep.ServerHandle,
@@ -488,7 +487,7 @@ func (d *Client) ExecuteStmt(hndl PreparedHandle) (*ResultHandle, error) {
 // Returns database/sql/driver.ErrBadConn if it fails or nil if it succeeds.
 func (d *Client) Ping(ctx context.Context) error {
 	coord := d.nextCoordID()
-	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_PING, user.RpcType_ACK, coord, &rpc.Ack{Ok: proto.Bool(true)})
+	encoded, err := encodeRPCMessage(rpc.RpcMode_PING, user.RpcType_ACK, coord, &rpc.Ack{Ok: proto.Bool(true)})
 	if err != nil {
 		return driver.ErrBadConn
 	}

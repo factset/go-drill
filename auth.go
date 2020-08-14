@@ -7,7 +7,6 @@ import (
 	"math"
 
 	"github.com/jcmturner/gokrb5/v8/gssapi"
-	"github.com/zeroshade/go-drill/internal/data"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
@@ -38,7 +37,7 @@ func (d *Client) doHandshake() error {
 		},
 	}
 
-	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_HANDSHAKE, d.nextCoordID(), &u2b)
+	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_HANDSHAKE, d.nextCoordID(), &u2b)
 	if err != nil {
 		return err
 	}
@@ -104,7 +103,7 @@ func (d *Client) handleAuth() error {
 		return err
 	}
 
-	encoded, err := data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
+	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
 		Mechanism: &d.Opts.Auth,
 		Data:      token,
 		Status:    shared.SaslStatus_SASL_START.Enum(),
@@ -132,7 +131,7 @@ func (d *Client) handleAuth() error {
 			encodeStatus = shared.SaslStatus_SASL_SUCCESS.Enum()
 		}
 
-		encoded, err = data.EncodeRpcMessage(rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
+		encoded, err = encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
 			Data:   token,
 			Status: encodeStatus,
 		})

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zeroshade/go-drill/internal/data"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
@@ -270,7 +269,7 @@ func TestResultHandleCancel(t *testing.T) {
 	assert.True(t, ok)
 
 	id := &shared.QueryId{}
-	hdr, err := data.DecodeRpcMessage(encoded, id)
+	hdr, err := decodeRPCMessage(encoded, id)
 	assert.NoError(t, err)
 	assert.NotNil(t, hdr)
 

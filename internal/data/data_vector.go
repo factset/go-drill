@@ -181,7 +181,12 @@ func (nv *NullableVarcharVector) Get(index uint) *string {
 }
 
 func (nv *NullableVarcharVector) Value(index uint) interface{} {
-	return nv.Get(index)
+	val := nv.Get(index)
+	if val == nil {
+		return nil
+	}
+
+	return *val
 }
 
 func NewNullableVarcharVector(data []byte, meta *shared.SerializedField) *NullableVarcharVector {

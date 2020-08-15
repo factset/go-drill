@@ -61,7 +61,8 @@ type Client struct {
 	// it will only affect future connections of this client.
 	Opts Options
 
-	conn net.Conn
+	conn      net.Conn
+	connected bool
 
 	drillBits []string
 	nextBit   int
@@ -72,6 +73,7 @@ type Client struct {
 	dataEncoder     encoder
 	serverInfo      *user.BitToUserHandshake
 	cancelHeartBeat context.CancelFunc
+	hbMutex         sync.Mutex
 
 	resultMap sync.Map
 	queryMap  sync.Map
@@ -136,6 +138,10 @@ func (d *Client) recvRoutine() {
 		err error
 	}
 
+	d.hbMutex.Lock()
+	d.connected = true
+	d.hbMutex.Unlock()
+
 	inbound := make(chan readData)
 	go func() {
 		for {
@@ -158,6 +164,8 @@ func (d *Client) recvRoutine() {
 			close(val.(chan *queryData))
 			return true
 		})
+		d.Close()
+		d.conn.Close()
 	}()
 
 	if d.Opts.HeartbeatFreq == nil {
@@ -167,7 +175,10 @@ func (d *Client) recvRoutine() {
 
 	if d.Opts.HeartbeatFreq != nil && d.Opts.HeartbeatFreq.Seconds() > 0 {
 		var heartBeatCtx context.Context
+		d.hbMutex.Lock()
 		heartBeatCtx, d.cancelHeartBeat = context.WithCancel(context.Background())
+		d.hbMutex.Unlock()
+
 		go func() {
 			ticker := time.NewTicker(*d.Opts.HeartbeatFreq)
 			defer ticker.Stop()
@@ -189,16 +200,18 @@ func (d *Client) recvRoutine() {
 		select {
 		case <-d.close:
 			return
-		case encoded := <-d.outbound:
+		case encoded, ok := <-d.outbound:
+			if !ok {
+				return
+			}
+
 			_, err := d.dataEncoder.WriteRaw(d.conn, encoded)
 			if err != nil {
-				d.Close()
 				return
 			}
 		case data := <-inbound:
 			if data.err != nil {
 				log.Println("drill: read error: ", data.err)
-				d.Close()
 				return
 			}
 
@@ -211,8 +224,9 @@ func (d *Client) recvRoutine() {
 				continue
 			case int32(user.RpcType_QUERY_HANDLE):
 				c, ok := d.queryMap.Load(data.msg.Header.GetCoordinationId())
-				if !ok {
-					log.Println("Couldn't find query channel for response")
+				if !ok || c == nil {
+					log.Println("couldn't find query channel for response")
+					continue
 				}
 
 				c.(chan *rpc.CompleteRpcMessage) <- data.msg
@@ -228,7 +242,8 @@ func (d *Client) recvRoutine() {
 func (d *Client) passQueryResponse(data *rpc.CompleteRpcMessage, msg proto.Message) {
 	d.sendAck(data.Header.GetCoordinationId(), true)
 	if err := proto.Unmarshal(data.ProtobufBody, msg); err != nil {
-		panic("couldn't unmarshal the query data")
+		log.Println("couldn't unmarshal query data from response")
+		return
 	}
 
 	qidField := msg.ProtoReflect().Descriptor().Fields().ByName("query_id")
@@ -269,15 +284,16 @@ func (d *Client) sendAck(coordID int32, isOk bool) {
 
 // Close the connection and cleanup the background goroutines
 func (d *Client) Close() error {
-	if d.close != nil {
+	d.hbMutex.Lock()
+	defer d.hbMutex.Unlock()
+	if d.connected {
 		close(d.close)
-		d.close = nil
 	}
 	if d.cancelHeartBeat != nil {
 		d.cancelHeartBeat()
 		d.cancelHeartBeat = nil
 	}
-	d.conn.Close()
+	d.connected = false
 	return nil
 }
 
@@ -372,6 +388,7 @@ func (d *Client) PrepareQuery(plan string) (PreparedHandle, error) {
 
 	queryHandle := make(chan *rpc.CompleteRpcMessage)
 	d.queryMap.Store(coord, queryHandle)
+	defer d.queryMap.Delete(coord)
 
 	d.outbound <- encoded
 	rsp, ok := <-queryHandle
@@ -380,7 +397,6 @@ func (d *Client) PrepareQuery(plan string) (PreparedHandle, error) {
 	}
 
 	close(queryHandle)
-	d.queryMap.Delete(coord)
 
 	resp := &user.CreatePreparedStatementResp{}
 	if err = proto.Unmarshal(rsp.GetProtobufBody(), resp); err != nil {
@@ -415,6 +431,7 @@ func (d *Client) SubmitQuery(t shared.QueryType, plan string) (*ResultHandle, er
 
 	queryHandle := make(chan *rpc.CompleteRpcMessage)
 	d.queryMap.Store(coord, queryHandle)
+	defer d.queryMap.Delete(coord)
 
 	d.outbound <- encoded
 	rsp, ok := <-queryHandle
@@ -423,7 +440,6 @@ func (d *Client) SubmitQuery(t shared.QueryType, plan string) (*ResultHandle, er
 	}
 
 	close(queryHandle)
-	d.queryMap.Delete(coord)
 
 	resp := &shared.QueryId{}
 	err = proto.Unmarshal(rsp.ProtobufBody, resp)
@@ -457,12 +473,13 @@ func (d *Client) ExecuteStmt(hndl PreparedHandle) (*ResultHandle, error) {
 		PreparedStatementHandle: prep.ServerHandle,
 	})
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
 
 	queryHandle := make(chan *rpc.CompleteRpcMessage)
 	d.queryMap.Store(coord, queryHandle)
+	defer d.queryMap.Delete(coord)
+
 	d.outbound <- encoded
 	rsp, ok := <-queryHandle
 	if !ok || rsp == nil {
@@ -470,7 +487,6 @@ func (d *Client) ExecuteStmt(hndl PreparedHandle) (*ResultHandle, error) {
 	}
 
 	close(queryHandle)
-	d.queryMap.Delete(coord)
 
 	resp := &shared.QueryId{}
 	err = proto.Unmarshal(rsp.GetProtobufBody(), resp)

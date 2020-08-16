@@ -117,7 +117,7 @@ type mockResHandle struct {
 }
 
 func (m *mockResHandle) Cancel()           { m.Called() }
-func (m *mockResHandle) Close() error      { return nil }
+func (m *mockResHandle) Close() error      { return m.Called().Error(0) }
 func (m *mockResHandle) GetCols() []string { return m.Called().Get(0).([]string) }
 func (m *mockResHandle) GetRecordBatch() *drill.RecordBatch {
 	return m.Called().Get(0).(*drill.RecordBatch)

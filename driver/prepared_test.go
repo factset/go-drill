@@ -34,7 +34,7 @@ func TestPreparedNumInput(t *testing.T) {
 func TestPreparedExec(t *testing.T) {
 	p := &prepared{}
 	r, e := p.Exec([]driver.Value{})
-	assert.Same(t, driver.ResultNoRows, r)
+	assert.Equal(t, driver.ResultNoRows, r)
 	assert.Same(t, driver.ErrSkip, e)
 }
 

@@ -46,6 +46,19 @@ func (int64Traits) CastFromBytes(b []byte) []int64 {
 	return res
 }
 
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (int64Traits) CastToBytes(b []int64) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Int64SizeBytes
+	s.Cap = h.Cap * Int64SizeBytes
+
+	return res
+}
+
 // Copy copies src to dst
 func (int64Traits) Copy(dst, src []int64) { copy(dst, src) }
 
@@ -72,6 +85,19 @@ func (int32Traits) CastFromBytes(b []byte) []int32 {
 	s.Data = h.Data
 	s.Len = h.Len / Int32SizeBytes
 	s.Cap = h.Cap / Int32SizeBytes
+
+	return res
+}
+
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (int32Traits) CastToBytes(b []int32) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Int32SizeBytes
+	s.Cap = h.Cap * Int32SizeBytes
 
 	return res
 }
@@ -106,6 +132,19 @@ func (float64Traits) CastFromBytes(b []byte) []float64 {
 	return res
 }
 
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (float64Traits) CastToBytes(b []float64) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Float64SizeBytes
+	s.Cap = h.Cap * Float64SizeBytes
+
+	return res
+}
+
 // Copy copies src to dst
 func (float64Traits) Copy(dst, src []float64) { copy(dst, src) }
 
@@ -132,6 +171,19 @@ func (uint64Traits) CastFromBytes(b []byte) []uint64 {
 	s.Data = h.Data
 	s.Len = h.Len / Uint64SizeBytes
 	s.Cap = h.Cap / Uint64SizeBytes
+
+	return res
+}
+
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (uint64Traits) CastToBytes(b []uint64) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Uint64SizeBytes
+	s.Cap = h.Cap * Uint64SizeBytes
 
 	return res
 }
@@ -166,6 +218,19 @@ func (uint32Traits) CastFromBytes(b []byte) []uint32 {
 	return res
 }
 
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (uint32Traits) CastToBytes(b []uint32) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Uint32SizeBytes
+	s.Cap = h.Cap * Uint32SizeBytes
+
+	return res
+}
+
 // Copy copies src to dst
 func (uint32Traits) Copy(dst, src []uint32) { copy(dst, src) }
 
@@ -192,6 +257,19 @@ func (float32Traits) CastFromBytes(b []byte) []float32 {
 	s.Data = h.Data
 	s.Len = h.Len / Float32SizeBytes
 	s.Cap = h.Cap / Float32SizeBytes
+
+	return res
+}
+
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (float32Traits) CastToBytes(b []float32) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Float32SizeBytes
+	s.Cap = h.Cap * Float32SizeBytes
 
 	return res
 }
@@ -226,6 +304,19 @@ func (int16Traits) CastFromBytes(b []byte) []int16 {
 	return res
 }
 
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (int16Traits) CastToBytes(b []int16) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Int16SizeBytes
+	s.Cap = h.Cap * Int16SizeBytes
+
+	return res
+}
+
 // Copy copies src to dst
 func (int16Traits) Copy(dst, src []int16) { copy(dst, src) }
 
@@ -252,6 +343,19 @@ func (uint16Traits) CastFromBytes(b []byte) []uint16 {
 	s.Data = h.Data
 	s.Len = h.Len / Uint16SizeBytes
 	s.Cap = h.Cap / Uint16SizeBytes
+
+	return res
+}
+
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (uint16Traits) CastToBytes(b []uint16) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Uint16SizeBytes
+	s.Cap = h.Cap * Uint16SizeBytes
 
 	return res
 }
@@ -286,6 +390,19 @@ func (int8Traits) CastFromBytes(b []byte) []int8 {
 	return res
 }
 
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (int8Traits) CastToBytes(b []int8) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Int8SizeBytes
+	s.Cap = h.Cap * Int8SizeBytes
+
+	return res
+}
+
 // Copy copies src to dst
 func (int8Traits) Copy(dst, src []int8) { copy(dst, src) }
 
@@ -312,6 +429,19 @@ func (uint8Traits) CastFromBytes(b []byte) []uint8 {
 	s.Data = h.Data
 	s.Len = h.Len / Uint8SizeBytes
 	s.Cap = h.Cap / Uint8SizeBytes
+
+	return res
+}
+
+// CastToBytes reinterprets the slice b to a slice of bytes.
+func (uint8Traits) CastToBytes(b []uint8) []byte {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+
+	var res []byte
+	s := (*reflect.SliceHeader)(unsafe.Pointer(&res))
+	s.Data = h.Data
+	s.Len = h.Len * Uint8SizeBytes
+	s.Cap = h.Cap * Uint8SizeBytes
 
 	return res
 }

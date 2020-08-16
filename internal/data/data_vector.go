@@ -13,6 +13,7 @@ import (
 )
 
 //go:generate go run ../cmd/tmpl -data numeric.tmpldata vector_numeric.gen.go.tmpl type_traits_numeric.gen.go.tmpl numeric_vec_typemap.gen.go.tmpl
+//go:generate go run ../cmd/tmpl -data numeric.tmpldata type_traits_numeric.gen_test.go.tmpl vector_numeric.gen_test.go.tmpl numeric_vec_typemap.gen_test.go.tmpl
 
 type DataVector interface {
 	Len() int
@@ -85,6 +86,16 @@ func (nb *NullableBitVector) Value(index uint) interface{} {
 	return val
 }
 
+func NewNullableBitVector(data []byte, meta *shared.SerializedField) *NullableBitVector {
+	bytemap := data[:meta.GetValueCount()]
+	remaining := data[meta.GetValueCount():]
+
+	return &NullableBitVector{
+		NewBitVector(remaining, meta),
+		bytemap,
+	}
+}
+
 type VarbinaryVector struct {
 	offsets []uint32
 	data    []byte
@@ -110,19 +121,6 @@ func (v *VarbinaryVector) Get(index uint) []byte {
 
 func (v *VarbinaryVector) Value(index uint) interface{} {
 	return v.Get(index)
-}
-
-type VarcharVector struct {
-	*VarbinaryVector
-}
-
-func (VarcharVector) Type() reflect.Type {
-	return reflect.TypeOf(string(""))
-}
-
-func (v *VarcharVector) Get(index uint) string {
-	b := v.VarbinaryVector.Get(index)
-	return *(*string)(unsafe.Pointer(&b))
 }
 
 func NewVarbinaryVector(data []byte, meta *shared.SerializedField) *VarbinaryVector {
@@ -155,6 +153,19 @@ func NewVarbinaryVector(data []byte, meta *shared.SerializedField) *VarbinaryVec
 		data:    remaining,
 		meta:    meta,
 	}
+}
+
+type VarcharVector struct {
+	*VarbinaryVector
+}
+
+func (VarcharVector) Type() reflect.Type {
+	return reflect.TypeOf(string(""))
+}
+
+func (v *VarcharVector) Get(index uint) string {
+	b := v.VarbinaryVector.Get(index)
+	return *(*string)(unsafe.Pointer(&b))
 }
 
 func NewVarcharVector(data []byte, meta *shared.SerializedField) *VarcharVector {
@@ -211,7 +222,7 @@ func NewTimestampVector(data []byte, meta *shared.SerializedField) *TimestampVec
 
 func (v *TimestampVector) Get(index uint) time.Time {
 	ts := v.Int64Vector.Get(index)
-	return time.Unix(ts, 0)
+	return time.Unix(ts/1000, ts%1000)
 }
 
 func (v *TimestampVector) Value(index uint) interface{} {
@@ -228,7 +239,7 @@ func (v *NullableTimestampVector) Get(index uint) time.Time {
 		return time.Time{}
 	}
 
-	return time.Unix(*ts/1000, 0)
+	return time.Unix(*ts/1000, *ts%1000)
 }
 
 func (v *NullableTimestampVector) Value(index uint) interface{} {
@@ -254,15 +265,18 @@ func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 		case common.MinorType_TIMESTAMP:
 			return NewNullableTimestampVector(rawData, meta)
 		}
-	}
+	} else {
 
-	switch meta.GetMajorType().GetMinorType() {
-	case common.MinorType_VARBINARY:
-		return NewVarbinaryVector(rawData, meta)
-	case common.MinorType_BIT:
-		return NewBitVector(rawData, meta)
-	case common.MinorType_TIMESTAMP:
-		return NewTimestampVector(rawData, meta)
+		switch meta.GetMajorType().GetMinorType() {
+		case common.MinorType_VARBINARY:
+			return NewVarbinaryVector(rawData, meta)
+		case common.MinorType_VARCHAR:
+			return NewVarcharVector(rawData, meta)
+		case common.MinorType_BIT:
+			return NewBitVector(rawData, meta)
+		case common.MinorType_TIMESTAMP:
+			return NewTimestampVector(rawData, meta)
+		}
 	}
 
 	return nil

@@ -1,0 +1,52 @@
+package data_test
+
+import (
+  "testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/zeroshade/go-drill/internal/data"
+  "github.com/zeroshade/go-drill/internal/rpc/proto/common"
+	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+	"google.golang.org/protobuf/proto"
+)
+
+{{- range .In}}
+{{ if .ProtoType -}}
+func TestNewNumericVecRequired{{.Name}}(t *testing.T) {
+  const N = 10
+  b := data.{{.Name}}Traits.CastToBytes([]{{.Type}}{
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+  })
+
+  meta := &shared.SerializedField{
+    MajorType: &common.MajorType{
+      MinorType: common.MinorType_{{.ProtoType}}.Enum(),
+      Mode: common.DataMode_REQUIRED.Enum(),
+    },
+  }
+
+  dv := data.NewValueVec(b, meta)
+  assert.IsType(t, (*data.{{.Name}}Vector)(nil), dv)
+}
+
+func TestNewNumericVecOptional{{.Name}}(t *testing.T) {
+const N = 10
+  b := data.{{.Name}}Traits.CastToBytes([]{{.Type}}{
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+  })
+
+  bytemap := []byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1}
+
+  meta := &shared.SerializedField{
+    ValueCount: proto.Int32(0),
+    MajorType: &common.MajorType{
+      MinorType: common.MinorType_{{.ProtoType}}.Enum(),
+      Mode: common.DataMode_OPTIONAL.Enum(),
+    },
+  }
+
+  dv := data.NewValueVec(append(bytemap, b...), meta)
+  assert.IsType(t, (*data.Nullable{{.Name}}Vector)(nil), dv)
+}
+{{end}}
+{{end}}

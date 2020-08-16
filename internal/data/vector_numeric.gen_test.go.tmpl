@@ -1,0 +1,67 @@
+package data_test
+
+import (
+  "reflect"
+  "testing"
+
+  "github.com/stretchr/testify/assert"
+  "github.com/zeroshade/go-drill/internal/data"
+  "github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+  "google.golang.org/protobuf/proto"
+)
+
+{{- range .In}}
+
+func Test{{.Name}}Vector(t *testing.T) {
+  const N = 10
+  b := data.{{.Name}}Traits.CastToBytes([]{{.Type}}{
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+  })
+
+  vec := data.New{{.Name}}Vector(b, nil)
+
+  assert.Equal(t, reflect.TypeOf({{.name}}({{.Default}})), vec.Type())
+
+  l, ok := vec.TypeLen()
+  assert.Zero(t, l)
+  assert.False(t, ok)
+  assert.Equal(t, N, vec.Len())
+
+  for i := 0; i < N; i++ {
+    assert.Exactly(t, {{.name}}(i), vec.Get(uint(i)))
+    assert.Exactly(t, {{.name}}(i), vec.Value(uint(i)))
+  }
+}
+
+func TestNullable{{.Name}}Vector(t *testing.T) {
+  const N = 10
+  b := data.{{.Name}}Traits.CastToBytes([]{{.Type}}{
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+  })
+
+  bytemap := []byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1}
+  meta := &shared.SerializedField{ValueCount: proto.Int32(10)}
+
+  vec := data.NewNullable{{.Name}}Vector(append(bytemap, b...), meta)
+  assert.Equal(t, reflect.TypeOf({{.name}}({{.Default}})), vec.Type())
+
+  l, ok := vec.TypeLen()
+  assert.Zero(t, l)
+  assert.False(t, ok)
+  assert.Equal(t, N, vec.Len())
+
+  for i := 0; i < N; i++ {
+    assert.Equal(t, i%2 == 0, vec.IsNull(uint(i)))
+    if i%2 == 1 {
+      val := new({{.name}})
+      *val = {{.name}}(i)
+
+      assert.Exactly(t, val, vec.Get(uint(i)))
+      assert.Exactly(t, {{.name}}(i), vec.Value(uint(i)))
+    } else {
+      assert.Nil(t, vec.Get(uint(i)))
+      assert.Nil(t, vec.Value(uint(i)))
+    }
+  }
+}
+{{end}}

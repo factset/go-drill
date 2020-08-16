@@ -1,0 +1,32 @@
+package data_test
+
+import (
+  "reflect"
+  "testing"
+
+  "github.com/zeroshade/go-drill/internal/data"
+)
+
+{{- range .In}}
+
+func Test{{.Name}}Traits(t *testing.T) {
+  const N = 10
+  b1 := data.{{.Name}}Traits.CastToBytes([]{{.Type}}{
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+  })
+
+	v1 := data.{{.Name}}Traits.CastFromBytes(b1)
+	for i, v := range v1 {
+		if got, want := v, {{.Type}}(i); got != want {
+			t.Fatalf("invalid value[%d]. got=%v, want=%v", i, got, want)
+		}
+	}
+
+  v2 := make([]{{.Type}}, N)
+	data.{{.Name}}Traits.Copy(v2, v1)
+
+	if !reflect.DeepEqual(v1, v2) {
+		t.Fatalf("invalid values:\nv1=%v\nv2=%v\n", v1, v2)
+	}
+}
+{{end}}

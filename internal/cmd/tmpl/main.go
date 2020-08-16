@@ -74,12 +74,12 @@ func main() {
 func readData(path string) interface{} {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Read Data: ", err)
 	}
 
 	var v interface{}
 	if err := json.Unmarshal(data, &v); err != nil {
-		log.Fatal(err)
+		log.Fatal("Unmarshal: ", err)
 	}
 	return v
 }
@@ -96,7 +96,7 @@ func process(data interface{}, paths []string) {
 		contents, _ := ioutil.ReadFile(in)
 		t, err = template.New("gen").Parse(string(contents))
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Template Parse: ", err)
 		}
 
 		var buf bytes.Buffer
@@ -104,13 +104,13 @@ func process(data interface{}, paths []string) {
 
 		err = t.Execute(&buf, data)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Tmpl Execute: ", err)
 		}
 
 		generated := buf.Bytes()
 		generated, err = format.Source(generated)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Format: ", err)
 		}
 
 		ioutil.WriteFile(out, generated, os.ModePerm)

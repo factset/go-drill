@@ -34,13 +34,6 @@ func (v *Int64Vector) Value(index uint) interface{} {
 	return v.Get(index)
 }
 
-func NewInt64VectorWithValues(data []int64, meta *shared.SerializedField) *Int64Vector {
-	return &Int64Vector{
-		values: data,
-		meta:   meta,
-	}
-}
-
 func NewInt64Vector(data []byte, meta *shared.SerializedField) *Int64Vector {
 	return &Int64Vector{
 		values: Int64Traits.CastFromBytes(data),
@@ -110,13 +103,6 @@ func (v *Int32Vector) Get(index uint) int32 {
 
 func (v *Int32Vector) Value(index uint) interface{} {
 	return v.Get(index)
-}
-
-func NewInt32VectorWithValues(data []int32, meta *shared.SerializedField) *Int32Vector {
-	return &Int32Vector{
-		values: data,
-		meta:   meta,
-	}
 }
 
 func NewInt32Vector(data []byte, meta *shared.SerializedField) *Int32Vector {
@@ -190,13 +176,6 @@ func (v *Float64Vector) Value(index uint) interface{} {
 	return v.Get(index)
 }
 
-func NewFloat64VectorWithValues(data []float64, meta *shared.SerializedField) *Float64Vector {
-	return &Float64Vector{
-		values: data,
-		meta:   meta,
-	}
-}
-
 func NewFloat64Vector(data []byte, meta *shared.SerializedField) *Float64Vector {
 	return &Float64Vector{
 		values: Float64Traits.CastFromBytes(data),
@@ -266,13 +245,6 @@ func (v *Uint64Vector) Get(index uint) uint64 {
 
 func (v *Uint64Vector) Value(index uint) interface{} {
 	return v.Get(index)
-}
-
-func NewUint64VectorWithValues(data []uint64, meta *shared.SerializedField) *Uint64Vector {
-	return &Uint64Vector{
-		values: data,
-		meta:   meta,
-	}
 }
 
 func NewUint64Vector(data []byte, meta *shared.SerializedField) *Uint64Vector {
@@ -346,13 +318,6 @@ func (v *Uint32Vector) Value(index uint) interface{} {
 	return v.Get(index)
 }
 
-func NewUint32VectorWithValues(data []uint32, meta *shared.SerializedField) *Uint32Vector {
-	return &Uint32Vector{
-		values: data,
-		meta:   meta,
-	}
-}
-
 func NewUint32Vector(data []byte, meta *shared.SerializedField) *Uint32Vector {
 	return &Uint32Vector{
 		values: Uint32Traits.CastFromBytes(data),
@@ -422,13 +387,6 @@ func (v *Float32Vector) Get(index uint) float32 {
 
 func (v *Float32Vector) Value(index uint) interface{} {
 	return v.Get(index)
-}
-
-func NewFloat32VectorWithValues(data []float32, meta *shared.SerializedField) *Float32Vector {
-	return &Float32Vector{
-		values: data,
-		meta:   meta,
-	}
 }
 
 func NewFloat32Vector(data []byte, meta *shared.SerializedField) *Float32Vector {
@@ -502,13 +460,6 @@ func (v *Int16Vector) Value(index uint) interface{} {
 	return v.Get(index)
 }
 
-func NewInt16VectorWithValues(data []int16, meta *shared.SerializedField) *Int16Vector {
-	return &Int16Vector{
-		values: data,
-		meta:   meta,
-	}
-}
-
 func NewInt16Vector(data []byte, meta *shared.SerializedField) *Int16Vector {
 	return &Int16Vector{
 		values: Int16Traits.CastFromBytes(data),
@@ -578,13 +529,6 @@ func (v *Uint16Vector) Get(index uint) uint16 {
 
 func (v *Uint16Vector) Value(index uint) interface{} {
 	return v.Get(index)
-}
-
-func NewUint16VectorWithValues(data []uint16, meta *shared.SerializedField) *Uint16Vector {
-	return &Uint16Vector{
-		values: data,
-		meta:   meta,
-	}
 }
 
 func NewUint16Vector(data []byte, meta *shared.SerializedField) *Uint16Vector {
@@ -658,13 +602,6 @@ func (v *Int8Vector) Value(index uint) interface{} {
 	return v.Get(index)
 }
 
-func NewInt8VectorWithValues(data []int8, meta *shared.SerializedField) *Int8Vector {
-	return &Int8Vector{
-		values: data,
-		meta:   meta,
-	}
-}
-
 func NewInt8Vector(data []byte, meta *shared.SerializedField) *Int8Vector {
 	return &Int8Vector{
 		values: Int8Traits.CastFromBytes(data),
@@ -734,13 +671,6 @@ func (v *Uint8Vector) Get(index uint) uint8 {
 
 func (v *Uint8Vector) Value(index uint) interface{} {
 	return v.Get(index)
-}
-
-func NewUint8VectorWithValues(data []uint8, meta *shared.SerializedField) *Uint8Vector {
-	return &Uint8Vector{
-		values: data,
-		meta:   meta,
-	}
 }
 
 func NewUint8Vector(data []byte, meta *shared.SerializedField) *Uint8Vector {

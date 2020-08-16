@@ -10,7 +10,7 @@ import (
 )
 
 type rows struct {
-	handle *drill.ResultHandle
+	handle drill.DataHandler
 	curRow int
 }
 

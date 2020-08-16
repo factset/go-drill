@@ -11,11 +11,11 @@ import (
 	"github.com/zeroshade/go-drill"
 )
 
-type Connector struct {
+type connector struct {
 	base drill.Conn
 }
 
-func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
+func (c *connector) Connect(ctx context.Context) (driver.Conn, error) {
 	dc, err := c.base.NewConnection(ctx)
 	if err != nil {
 		return nil, err
@@ -23,8 +23,8 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	return &conn{dc}, nil
 }
 
-func (c *Connector) Driver() driver.Driver {
-	return Driver{}
+func (c *connector) Driver() driver.Driver {
+	return drillDriver{}
 }
 
 func parseConnectStr(connectStr string) (driver.Connector, error) {
@@ -38,7 +38,9 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 			return nil, fmt.Errorf("invalid format for connector string")
 		}
 
-		switch parsed[0] {
+		parsed[1] = strings.TrimSpace(parsed[1])
+
+		switch strings.TrimSpace(parsed[0]) {
 		case "zk":
 			zknodes = strings.Split(parsed[1], ",")
 		case "auth":
@@ -64,8 +66,10 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 			}
 			opts.HeartbeatFreq = new(time.Duration)
 			*opts.HeartbeatFreq = time.Duration(hbsec) * time.Second
+		default:
+			return nil, fmt.Errorf("invalid argument for connection string: %s", parsed[0])
 		}
 	}
 
-	return &Connector{base: drill.NewClient(opts, zknodes...)}, nil
+	return &connector{base: drill.NewClient(opts, zknodes...)}, nil
 }

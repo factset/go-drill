@@ -6,7 +6,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"io"
-	"log"
 
 	"github.com/zeroshade/go-drill"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
@@ -15,12 +14,12 @@ import (
 var errNoPrepSupport = errors.New("drill does not support parameters in prepared statements")
 
 func init() {
-	sql.Register("drill", Driver{})
+	sql.Register("drill", drillDriver{})
 }
 
-type Driver struct{}
+type drillDriver struct{}
 
-func (d Driver) Open(dsn string) (driver.Conn, error) {
+func (d drillDriver) Open(dsn string) (driver.Conn, error) {
 	cn, err := d.OpenConnector(dsn)
 	if err != nil {
 		return nil, err
@@ -29,11 +28,11 @@ func (d Driver) Open(dsn string) (driver.Conn, error) {
 	return cn.Connect(context.Background())
 }
 
-func (d Driver) OpenConnector(name string) (driver.Connector, error) {
+func (d drillDriver) OpenConnector(name string) (driver.Connector, error) {
 	return parseConnectStr(name)
 }
 
-func processWithCtx(ctx context.Context, handle *drill.ResultHandle, f func(h *drill.ResultHandle) error) error {
+func processWithCtx(ctx context.Context, handle drill.DataHandler, f func(h drill.DataHandler) error) error {
 	done := make(chan struct{})
 	defer close(done)
 
@@ -75,10 +74,10 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	}
 
 	var affectedRows int64 = 0
-	err = processWithCtx(ctx, handle, func(h *drill.ResultHandle) error {
+	err = processWithCtx(ctx, handle, func(h drill.DataHandler) error {
 		var err error
 		var batch *drill.RecordBatch
-		for batch, err = h.Next(); err != nil; batch, err = h.Next() {
+		for batch, err = h.Next(); err == nil; batch, err = h.Next() {
 			affectedRows += int64(batch.Def.GetAffectedRowsCount())
 		}
 
@@ -99,12 +98,11 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 
 	handle, err := c.Conn.SubmitQuery(shared.QueryType_SQL, query)
 	if err != nil {
-		log.Println(err)
 		return nil, driver.ErrBadConn
 	}
 
 	r := &rows{handle: handle}
-	return r, processWithCtx(ctx, handle, func(h *drill.ResultHandle) error {
+	return r, processWithCtx(ctx, handle, func(h drill.DataHandler) error {
 		_, err := h.Next()
 		return err
 	})

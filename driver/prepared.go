@@ -16,6 +16,7 @@ type prepared struct {
 }
 
 func (p *prepared) Close() error {
+	p.stmt = nil
 	p.client = nil
 	return nil
 }
@@ -56,10 +57,10 @@ func (p *prepared) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	}
 
 	var affectedRows int64 = 0
-	err = processWithCtx(ctx, handle, func(h *drill.ResultHandle) error {
+	err = processWithCtx(ctx, handle, func(h drill.DataHandler) error {
 		var err error
 		var batch *drill.RecordBatch
-		for batch, err = h.Next(); err != nil; batch, err = h.Next() {
+		for batch, err = h.Next(); err == nil; batch, err = h.Next() {
 			affectedRows += int64(batch.Def.GetAffectedRowsCount())
 		}
 
@@ -84,7 +85,7 @@ func (p *prepared) QueryContext(ctx context.Context, args []driver.NamedValue) (
 	}
 
 	r := &rows{handle: handle}
-	return r, processWithCtx(ctx, handle, func(h *drill.ResultHandle) error {
+	return r, processWithCtx(ctx, handle, func(h drill.DataHandler) error {
 		_, err := h.Next()
 		return err
 	})

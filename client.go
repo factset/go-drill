@@ -45,9 +45,9 @@ type Conn interface {
 	Connect(context.Context) error
 	ConnectWithZK(context.Context, ...string) error
 	Ping(context.Context) error
-	SubmitQuery(shared.QueryType, string) (*ResultHandle, error)
+	SubmitQuery(shared.QueryType, string) (DataHandler, error)
 	PrepareQuery(string) (PreparedHandle, error)
-	ExecuteStmt(PreparedHandle) (*ResultHandle, error)
+	ExecuteStmt(PreparedHandle) (DataHandler, error)
 	NewConnection(context.Context) (Conn, error)
 	Close() error
 }
@@ -68,7 +68,7 @@ type Client struct {
 	nextBit   int
 	coordID   int32
 	endpoint  Drillbit
-	zkNodes   []string
+	ZkNodes   []string
 
 	dataEncoder     encoder
 	serverInfo      *user.BitToUserHandshake
@@ -90,7 +90,7 @@ func NewClient(opts Options, zk ...string) *Client {
 		outbound:    make(chan []byte, 10),
 		pingpong:    make(chan bool),
 		coordID:     int32(rand.Int()%1729 + 1),
-		zkNodes:     zk,
+		ZkNodes:     zk,
 		dataEncoder: rpcEncoder{},
 		Opts:        opts,
 	}
@@ -105,7 +105,7 @@ var createZKHandler = newZKHandler
 // and zookeeper cluster as the current Client, just picking a different endpoint
 // to connect to.
 func (d *Client) NewConnection(ctx context.Context) (Conn, error) {
-	newClient := NewClient(d.Opts, d.zkNodes...)
+	newClient := NewClient(d.Opts, d.ZkNodes...)
 
 	if len(d.drillBits) == 0 {
 		err := newClient.Connect(ctx)
@@ -123,7 +123,7 @@ func (d *Client) NewConnection(ctx context.Context) (Conn, error) {
 
 	newClient.nextBit = d.nextBit
 
-	zook, err := createZKHandler(newClient.Opts.ClusterName, newClient.zkNodes...)
+	zook, err := createZKHandler(newClient.Opts.ClusterName, newClient.ZkNodes...)
 	if err != nil {
 		return nil, err
 	}
@@ -328,11 +328,11 @@ func (d *Client) ConnectEndpoint(ctx context.Context, e Drillbit) error {
 // As with ConnectEndpoint, the context provided will be passed to DialContext
 // and will not be stored in the client.
 func (d *Client) Connect(ctx context.Context) error {
-	if len(d.zkNodes) == 0 {
+	if len(d.ZkNodes) == 0 {
 		return errors.New("no zookeeper nodes specified")
 	}
 
-	zoo, err := createZKHandler(d.Opts.ClusterName, d.zkNodes...)
+	zoo, err := createZKHandler(d.Opts.ClusterName, d.ZkNodes...)
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,7 @@ func (d *Client) Connect(ctx context.Context) error {
 // As with ConnectEndpoint, the context provided will be passed to DialContext
 // and will not be stored in the client.
 func (d *Client) ConnectWithZK(ctx context.Context, zkNode ...string) error {
-	d.zkNodes = zkNode
+	d.ZkNodes = zkNode
 	return d.Connect(ctx)
 }
 
@@ -416,7 +416,7 @@ func (d *Client) PrepareQuery(plan string) (PreparedHandle, error) {
 //
 // If the query fails, this will not error but rather you'd retrieve that failure from
 // the result handle itself.
-func (d *Client) SubmitQuery(t shared.QueryType, plan string) (*ResultHandle, error) {
+func (d *Client) SubmitQuery(t shared.QueryType, plan string) (DataHandler, error) {
 	query := &user.RunQuery{
 		ResultsMode: user.QueryResultsMode_STREAM_FULL.Enum(),
 		Type:        &t,
@@ -460,7 +460,7 @@ func (d *Client) SubmitQuery(t shared.QueryType, plan string) (*ResultHandle, er
 
 // ExecuteStmt runs the passed prepared statement against the cluster and returns
 // a handle to the results in the same way that SubmitQuery does.
-func (d *Client) ExecuteStmt(hndl PreparedHandle) (*ResultHandle, error) {
+func (d *Client) ExecuteStmt(hndl PreparedHandle) (DataHandler, error) {
 	prep := hndl.(*user.PreparedStatement)
 	if prep == nil {
 		return nil, errors.New("invalid prepared statement handle")

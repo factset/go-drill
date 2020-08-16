@@ -36,7 +36,7 @@ func TestNewClient(t *testing.T) {
 	assert.NotNil(t, cl.close)
 	assert.NotNil(t, cl.outbound)
 	assert.NotNil(t, cl.pingpong)
-	assert.ElementsMatch(t, []string{"zknode1", "zknode2", "zknode3"}, cl.zkNodes)
+	assert.ElementsMatch(t, []string{"zknode1", "zknode2", "zknode3"}, cl.ZkNodes)
 	assert.IsType(t, rpcEncoder{}, cl.dataEncoder)
 	assert.Equal(t, opts, cl.Opts)
 	assert.GreaterOrEqual(t, cl.coordID, int32(0))
@@ -380,7 +380,7 @@ func TestClientSubmitQuery(t *testing.T) {
 
 	rh, err := cl.SubmitQuery(shared.QueryType_SQL, "foobar")
 	assert.NoError(t, err)
-	assert.Same(t, cl, rh.client)
+	assert.Same(t, cl, rh.(*ResultHandle).client)
 	assert.EqualValues(t, 1, cl.coordID)
 
 	_, ok := cl.queryMap.Load(0)
@@ -388,10 +388,10 @@ func TestClientSubmitQuery(t *testing.T) {
 
 	ch, ok := cl.resultMap.Load(qid{12345, 98765})
 	assert.True(t, ok)
-	assert.Exactly(t, ch, rh.dataChannel)
+	assert.Exactly(t, ch, rh.(*ResultHandle).dataChannel)
 
-	assert.Equal(t, queryID.GetPart1(), rh.queryID.GetPart1())
-	assert.Equal(t, queryID.GetPart2(), rh.queryID.GetPart2())
+	assert.Equal(t, queryID.GetPart1(), rh.(*ResultHandle).queryID.GetPart1())
+	assert.Equal(t, queryID.GetPart2(), rh.(*ResultHandle).queryID.GetPart2())
 }
 
 func TestClientReqNilResp(t *testing.T) {
@@ -621,7 +621,7 @@ func TestClientExecuteStmt(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Same(t, cl, rh.client)
+	assert.Same(t, cl, rh.(*ResultHandle).client)
 	assert.EqualValues(t, 1, cl.coordID)
 
 	_, ok := cl.queryMap.Load(0)
@@ -629,10 +629,10 @@ func TestClientExecuteStmt(t *testing.T) {
 
 	ch, ok := cl.resultMap.Load(qid{12345, 98765})
 	assert.True(t, ok)
-	assert.Exactly(t, ch, rh.dataChannel)
+	assert.Exactly(t, ch, rh.(*ResultHandle).dataChannel)
 
-	assert.Equal(t, queryID.GetPart1(), rh.queryID.GetPart1())
-	assert.Equal(t, queryID.GetPart2(), rh.queryID.GetPart2())
+	assert.Equal(t, queryID.GetPart1(), rh.(*ResultHandle).queryID.GetPart1())
+	assert.Equal(t, queryID.GetPart2(), rh.(*ResultHandle).queryID.GetPart2())
 }
 
 func TestClientExecuteStatementNil(t *testing.T) {

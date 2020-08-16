@@ -10,7 +10,18 @@ import (
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
 )
 
-// A ResultHandle is an opaque handle for a given result set.
+// A DataHandler is an object that allows iterating through record batches as the data
+// comes in, or cancelling a running query.
+type DataHandler interface {
+	Next() (*RecordBatch, error)
+	Cancel()
+	GetCols() []string
+	GetRecordBatch() *RecordBatch
+	Close() error
+}
+
+// A ResultHandle is an opaque handle for a given result set, implementing the DataHandler
+// interface.
 //
 // It contains a channel over which the client will send the data as it comes in
 // allowing results to be streamed as they are retrieved. It also contains a

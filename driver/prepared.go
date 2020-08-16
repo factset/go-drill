@@ -3,7 +3,6 @@ package driver
 import (
 	"context"
 	"database/sql/driver"
-	"errors"
 	"io"
 
 	"github.com/zeroshade/go-drill"
@@ -76,7 +75,7 @@ func (p *prepared) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 
 func (p *prepared) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	if len(args) > 0 {
-		return nil, errors.New("drill does not support parameters in prepared statements")
+		return nil, errNoPrepSupport
 	}
 
 	handle, err := p.client.ExecuteStmt(p.stmt)

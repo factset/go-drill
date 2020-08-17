@@ -403,3 +403,41 @@ func TestBaseWrappedConn(t *testing.T) {
 	mc.On("SetWriteDeadline", testT).Return(assert.AnError).Once()
 	assert.Same(t, assert.AnError, s.GetWrappedConn(mc).SetWriteDeadline(testT))
 }
+
+func TestWriteWrappedConn(t *testing.T) {
+	m := new(mockMech)
+	m.Test(t)
+	defer m.AssertExpectations(t)
+
+	wraptoken, _ := gssapi.NewInitiatorWrapToken(deadbeef, testkey)
+	m.On("Wrap", deadbeef).Return(*wraptoken)
+
+	tokenbytes, _ := wraptoken.Marshal()
+
+	mc := new(mockConn)
+	mc.Test(t)
+	defer mc.AssertExpectations(t)
+
+	mc.On("Write", append([]byte{0x0, 0x0, 0x0, 0x20}, tokenbytes...)).Return(25, nil)
+
+	s := saslwrapper{mech: m}
+	n, err := s.GetWrappedConn(mc).Write(deadbeef)
+	assert.NoError(t, err)
+	assert.Equal(t, 25, n)
+}
+
+func TestWriteWrappedConnFail(t *testing.T) {
+	m := new(mockMech)
+	m.Test(t)
+	defer m.AssertExpectations(t)
+
+	m.On("Wrap", deadbeef).Return(gssapi.WrapToken{})
+
+	mc := new(mockConn)
+	mc.Test(t)
+
+	s := saslwrapper{mech: m}
+	n, err := s.GetWrappedConn(mc).Write(deadbeef)
+	assert.Error(t, err)
+	assert.Zero(t, n)
+}

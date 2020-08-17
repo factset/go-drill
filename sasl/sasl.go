@@ -3,6 +3,7 @@ package sasl
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -75,7 +76,7 @@ func NewSaslWrapper(userSpn, serviceSpn string, props SecurityProps) (Wrapper, e
 func (s *saslwrapper) InitAuthPayload() ([]byte, error) {
 	var err error
 	if s.state != saslAuthInit {
-		return nil, fmt.Errorf("invalid sasl auth state")
+		return nil, errors.New("invalid sasl auth state")
 	}
 
 	s.ct, err = s.mech.InitSecContext()

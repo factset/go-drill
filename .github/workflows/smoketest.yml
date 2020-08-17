@@ -1,0 +1,134 @@
+name: SmokeTest
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  smoketest:
+    name: ZK Drill Test
+    runs-on: ubuntu-latest
+    services:
+      zoo1:
+        image: zookeeper
+        ports:
+          - 2181:2181
+        env:
+          ZOO_MY_ID: 1
+          ZOO_SERVERS: server.1=0.0.0.0:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+
+      zoo2:
+        image: zookeeper
+        ports:
+          - 2182:2181
+        env:
+          ZOO_MY_ID: 2
+          ZOO_SERVERS: server.1=0.0.0.0:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+
+      zoo3:
+        image: zookeeper
+        ports:
+          - 2183:2181
+        env:
+          ZOO_MY_ID: 3
+          ZOO_SERVERS: server.1=0.0.0.0:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+    strategy:
+      matrix:
+        kerberos: [true, false]
+    steps:
+      - name: Checkout code into the directory
+        uses: actions/checkout@v2
+
+      - name: Setup Kerberos
+        if: ${{ matrix.kerberos }}
+        env:
+          REALM: "EXAMPLE.COM"
+          PASSWORD: "password1234"
+        run: |
+          sudo apt-get update
+          sudo mkdir -p /opt/var/log
+          sudo tee /etc/krb5.conf << EOF
+          [libdefaults]
+            default_realm = $REALM
+            dns_lookup_realm = false
+            dns_lookup_kdc = false
+          [realms]
+            $REALM = {
+              kdc = localhost
+              admin_server = localhost
+            }
+          [logging]
+            default = FILE:/opt/var/log/krb5libs.log
+            kdc = FILE:/opt/var/log/krb5kdc.log
+            admin_server = FILE:/opt/var/log/kadmind.log
+          [domain_realm]
+            .localhost = $REALM
+            localhost = $REALM
+          EOF
+
+          sudo mkdir /etc/krb5kdc
+          printf '*/*@%s\t*' "$REALM" | sudo tee /etc/krb5kdc/kadm5.acl
+
+          sudo apt-get install -y krb5-user krb5-kdc krb5-admin-server
+          printf "$PASSWORD\n$PASSWORD" | sudo kdb5_util -r "$REALM" create -s
+          sudo kadmin.local -q "addprinc -randkey drill/$(hostname -A | cut -d' ' -f1)@$REALM"
+          sudo kadmin.local -q "addprinc -randkey drill/localhost@$REALM"
+          sudo kadmin.local -q "ktadd -k /tmp/drill.keytab drill/$(hostname -A | cut -d' ' -f1)@$REALM"
+          sudo kadmin.local -q "ktadd -k /tmp/drill.keytab drill/localhost@$REALM"
+          sudo chmod +rx /tmp/drill.keytab
+
+          sudo service krb5-kdc restart
+          sudo service krb5-admin-server restart
+          kinit -kt /tmp/drill.keytab "drill/localhost@$REALM"
+
+      - name: Setup and Start Drill
+        env:
+          KERBEROS: "${{ matrix.kerberos }}"
+        run: |
+          sudo chmod +rwx -R /opt
+          mkdir /opt/drill
+          sh -c 'wget -O - http://apache.mirrors.hoobly.com/drill/drill-1.17.0/apache-drill-1.17.0.tar.gz | tar -xz'
+          mv apache-drill-1.17.0/* /opt/drill/
+          cp smoketest/storage-plugins-override.conf /opt/drill/conf/
+          if [ $KERBEROS = "true" ]; then
+            cp smoketest/drill-override-kerberos.conf /opt/drill/conf/drill-override.conf
+          else
+            cp smoketest/drill-override.conf /opt/drill/conf/drill-override.conf
+          fi
+          sudo adduser drill --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password
+          echo "drill:password" | sudo chpasswd
+          sudo chown -R drill:drill /opt/drill
+          sudo -u drill /opt/drill/bin/drillbit.sh --config /opt/drill/conf start
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.13
+        id: go
+
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure
+          fi
+
+      - name: Run smoke test
+        if: ${{ !matrix.kerberos }}
+        run: go test -race -v -tags smoke . -run ^Example$
+
+      - name: Run Smoke Test Kerberos
+        if: ${{ matrix.kerberos }}
+        run: |
+          klist
+          go test -race -v -tags smoke,kerberos . -run ^Example_kerberos$
+
+      - name: print drill log
+        if: ${{ failure() }}
+        run: cat /opt/drill/log/drillbit.log /opt/drill/log/drillbit.out
+
+      - name: Stop drillbit
+        run: sudo /opt/drill/bin/drillbit.sh graceful_stop

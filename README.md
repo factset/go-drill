@@ -74,3 +74,49 @@ func main() {
 }
 ```
 
+## Developing
+
+### Refreshing the Protobuf Definitions
+
+A command is provided to easily refresh the protobuf definitions, provided you have
+`protoc` already on your `PATH`. The source should be in a directory structure like
+`.../github.com/zeroshade/go-drill/` for development, allowing usage of `go generate`
+which will run the command.
+
+Alternatively, the provided command `drillProto` can be used manually via
+`go run ./internal/cmd/drillProto` from the root of the source directory.
+
+```bash
+$ go run ./internal/cmd/drillProto -h
+Drill Proto.
+
+Usage:
+        drillProto -h | --help
+        drillProto download [-o PATH]
+        drillProto fixup [-o PATH]
+        drillProto gen [-o PATH] ROOTPATH
+        drillProto runall [-o PATH] ROOTPATH
+
+Arguments:
+        ROOTPATH  location of the root output for the generated .go files
+
+Options:
+        -h --help           Show this screen.
+        -o PATH --out PATH  .proto destination path [default: protobuf]
+```
+
+`drillProto download` will simply download the .proto files to the specified path
+from the apache drill github repo.
+
+`drillProto fixup` adds the `option go_package = "github.com/zeroshade/go-drill/internal/rpc/proto/..."` to each file.
+
+`drillProto gen` will generate the `.pb.go` files from the protobuf files, using the
+provided `ROOTPATH` as the root output where it will write the files in the structure
+of `<ROOTPATH>/github.com/zeroshade/go-drill/internal/rpc/proto/...`.
+
+`drillProto runall` does all of the steps in order as one command.
+
+### Regenerate the data vector handling
+
+Running `go generate ./internal/data` will regenerate the `.gen.go` files from their
+templates.

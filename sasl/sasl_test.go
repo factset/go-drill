@@ -1,6 +1,7 @@
 package sasl
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net"
@@ -440,4 +441,79 @@ func TestWriteWrappedConnFail(t *testing.T) {
 	n, err := s.GetWrappedConn(mc).Write(deadbeef)
 	assert.Error(t, err)
 	assert.Zero(t, n)
+}
+
+func TestReadBadUnmarshalToken(t *testing.T) {
+	mc := new(mockConn)
+	mc.Test(t)
+	defer mc.AssertExpectations(t)
+
+	mc.On("Read")
+
+	// will fail to unmarshal cuz it doesn't have an acceptor flag
+	wraptoken, _ := gssapi.NewInitiatorWrapToken(deadbeef, testkey)
+	tokenbytes, _ := wraptoken.Marshal()
+	mc.r = bytes.NewReader(append([]byte{0x0, 0x0, 0x0, 0x20}, tokenbytes...))
+
+	s := saslwrapper{}
+	b := make([]byte, 4)
+	n, err := s.GetWrappedConn(mc).Read(b)
+	assert.Zero(t, n)
+	assert.Error(t, err)
+}
+
+func TestReadCopyFail(t *testing.T) {
+	mc := new(mockConn)
+	mc.Test(t)
+	defer mc.AssertExpectations(t)
+
+	mc.On("Read")
+	mc.r = bytes.NewReader(append([]byte{0x0, 0x0, 0x0, 0x20}, deadbeef...))
+
+	s := saslwrapper{}
+	b := make([]byte, 4)
+	_, err := s.GetWrappedConn(mc).Read(b)
+	assert.Same(t, io.EOF, err)
+}
+
+func TestReadWrappedConn(t *testing.T) {
+	mc := new(mockConn)
+	mc.Test(t)
+	defer mc.AssertExpectations(t)
+
+	mc.On("Read")
+
+	etyp, _ := crypto.GetEtype(testkey.KeyType)
+	wraptoken := gssapi.WrapToken{
+		Flags:   0x01,
+		EC:      uint16(etyp.GetHMACBitLength() / 8),
+		Payload: deadbeef,
+	}
+	assert.NoError(t, wraptoken.SetCheckSum(testkey, keyusage.GSSAPI_ACCEPTOR_SEAL))
+	tokenbytes, _ := wraptoken.Marshal()
+	mc.r = bytes.NewReader(append([]byte{0x0, 0x0, 0x0, 0x20}, tokenbytes...))
+
+	m := new(mockMech)
+	m.Test(t)
+	defer m.AssertExpectations(t)
+
+	m.On("Unwrap", wraptoken).Return(deadbeef)
+
+	s := saslwrapper{mech: m}
+	conn := s.GetWrappedConn(mc)
+
+	b := make([]byte, 4)
+	n, err := conn.Read(b[:2])
+	assert.NoError(t, err)
+	assert.Equal(t, 2, n)
+
+	n, err = conn.Read(b[2:])
+	assert.NoError(t, err)
+	assert.Equal(t, 2, n)
+
+	assert.Equal(t, deadbeef, b)
+
+	n, err = conn.Read(b)
+	assert.Zero(t, n)
+	assert.Same(t, io.EOF, err)
 }

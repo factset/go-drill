@@ -231,8 +231,6 @@ func (g *gssapiKrb5Mech) VerifyMIC(mt gssapi.MICToken) (bool, error) {
 func (g *gssapiKrb5Mech) Wrap(msg []byte) gssapi.WrapToken {
 	var data []byte
 
-	etyp, _ := crypto.GetEtype(g.ctx.key.KeyType)
-
 	if (g.ctx.qop & QopConf) != 0 {
 		tok := gssapi.WrapToken{
 			Flags:     0x02,
@@ -248,6 +246,7 @@ func (g *gssapiKrb5Mech) Wrap(msg []byte) gssapi.WrapToken {
 			panic(err)
 		}
 
+		etyp, _ := crypto.GetEtype(g.ctx.key.KeyType)
 		_, data, err = etyp.EncryptMessage(g.ctx.key.KeyValue, append(msg, hdr...), keyusage.GSSAPI_INITIATOR_SEAL)
 		if err != nil {
 			panic(err)

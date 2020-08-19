@@ -167,7 +167,9 @@ func (g *gssapiKrb5Token) Context() context.Context {
 // based on the sasl props to determine whether or not we want to use
 // integrity checking and/or confidentiality
 func (g *gssapiKrb5Mech) getCtxFlags() []int {
-	ret := []int{gssapi.ContextFlagMutual, gssapi.ContextFlagSequence}
+	// leave out the Sequence flag for now until i figure out why new versions of the krb server
+	// don't like how I'm constructing my sequence numbers
+	ret := []int{gssapi.ContextFlagMutual /*, gssapi.ContextFlagSequence*/}
 	if g.saslProps.UseEncryption {
 		ret = append(ret, gssapi.ContextFlagConf, gssapi.ContextFlagInteg)
 		return ret

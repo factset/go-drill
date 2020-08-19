@@ -2,10 +2,10 @@ package drill
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/go-zookeeper/zk"
+	"github.com/zeroshade/go-drill/internal/log"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec"
 	"google.golang.org/protobuf/proto"
 )
@@ -32,7 +32,7 @@ type zkHandler struct {
 func newZKHandler(cluster string, nodes ...string) (*zkHandler, error) {
 	hdlr := &zkHandler{Connecting: true, Nodes: zk.FormatServers(nodes), Path: "/drill/" + cluster}
 	var err error
-	hdlr.conn, _, err = zk.Connect(hdlr.Nodes, 30*time.Second, zk.WithEventCallback(func(ev zk.Event) {
+	hdlr.conn, _, err = zk.Connect(hdlr.Nodes, 30*time.Second, zk.WithLogger(&log.Logger), zk.WithEventCallback(func(ev zk.Event) {
 		switch ev.Type {
 		case zk.EventSession:
 			switch ev.State {
@@ -47,7 +47,7 @@ func newZKHandler(cluster string, nodes ...string) (*zkHandler, error) {
 
 		hdlr.Connecting = false
 		if ev.State == zk.StateConnected {
-			log.Println("Connected to Zookeeper.")
+			log.Print("Connected to Zookeeper.")
 		}
 	}))
 
@@ -66,7 +66,7 @@ func (z *zkHandler) GetDrillBits() []string {
 		z.Err = err
 	}
 
-	log.Printf("%+v %+v\n", children, stat)
+	log.Printf("%+v %+v", children, stat)
 	return children
 }
 
@@ -85,7 +85,7 @@ func (z *zkHandler) GetEndpoint(drillbit string) Drillbit {
 		return nil
 	}
 
-	log.Printf("%+v\n", drillServer.String())
+	log.Printf("%+v", drillServer.String())
 
 	return drillServer.GetEndpoint()
 }

@@ -5,13 +5,13 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/zeroshade/go-drill/internal/log"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
@@ -211,7 +211,7 @@ func (d *Client) recvRoutine() {
 			}
 		case data := <-inbound:
 			if data.err != nil {
-				log.Println("drill: read error: ", data.err)
+				log.Printf("drill: read error: ", data.err)
 				return
 			}
 
@@ -225,7 +225,7 @@ func (d *Client) recvRoutine() {
 			case int32(user.RpcType_QUERY_HANDLE):
 				c, ok := d.queryMap.Load(data.msg.Header.GetCoordinationId())
 				if !ok || c == nil {
-					log.Println("couldn't find query channel for response")
+					log.Print("couldn't find query channel for response")
 					continue
 				}
 
@@ -242,7 +242,7 @@ func (d *Client) recvRoutine() {
 func (d *Client) passQueryResponse(data *rpc.CompleteRpcMessage, msg proto.Message) {
 	d.sendAck(data.Header.GetCoordinationId(), true)
 	if err := proto.Unmarshal(data.ProtobufBody, msg); err != nil {
-		log.Println("couldn't unmarshal query data from response")
+		log.Print("couldn't unmarshal query data from response")
 		return
 	}
 

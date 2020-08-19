@@ -19,4 +19,9 @@
 //
 //     db, err := sql.Open("drill", strings.Join(props, ";"))
 //  }
+//
+// Also, currently logging of the internals can be turned on via the environment
+// variable GO_DRILL_LOG_LEVEL. This uses github.com/rs/zerolog to do the logging
+// so anything that is valid to pass to the zerolog.ParseLevel function is valid
+// as a value for the environment variable.
 package drill

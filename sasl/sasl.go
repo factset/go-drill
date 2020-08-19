@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"time"
 
@@ -119,7 +118,6 @@ func (s *saslwrapper) chooseQop(mechSsf uint32, serverBitMask Qop) (uint32, Qop)
 func (s *saslwrapper) Step(b []byte) ([]byte, gssapi.Status) {
 	switch s.state {
 	case saslAuthNeg:
-		log.Println("Negotiate Auth")
 		// handle response from InitAuthPayload
 		if err := s.ct.Unmarshal(b); err != nil {
 			return nil, gssapi.Status{Code: gssapi.StatusDefectiveCredential, Message: err.Error()}
@@ -131,7 +129,6 @@ func (s *saslwrapper) Step(b []byte) ([]byte, gssapi.Status) {
 		_, st := s.ct.Verify()
 		return nil, st
 	case saslAuthSsf:
-		log.Println("Negotiate ssf")
 		var nntoken gssapi.WrapToken
 		// our ssf negotiation will not have the payload encrypted
 		if err := nntoken.Unmarshal(b, true); err != nil {
@@ -147,10 +144,8 @@ func (s *saslwrapper) Step(b []byte) ([]byte, gssapi.Status) {
 			return nil, gssapi.Status{Code: gssapi.StatusDefectiveToken, Message: fmt.Sprintf("token invalid, should be 4 bytes, not %+v", len(unwrapped))}
 		}
 
-		log.Println("Unwrapped Token:", unwrapped)
-
 		mechSsf := GetSsf(s.ct)
-		log.Println("Mech SSF:", mechSsf)
+
 		if s.Props.MinSsf > mechSsf {
 			return nil, gssapi.Status{Code: gssapi.StatusBadMech, Message: "sasl too weak"}
 		} else if s.Props.MinSsf > s.Props.MaxSsf {
@@ -167,15 +162,12 @@ func (s *saslwrapper) Step(b []byte) ([]byte, gssapi.Status) {
 		maxOutBuf := CalcMaxOutputSize(mechSsf, binary.BigEndian.Uint32(append([]byte{0x00}, unwrapped[1:]...)), s.ct)
 		s.Props.MaxBufSize = int32(maxOutBuf)
 
-		log.Println("MaxOutBuf:", maxOutBuf)
-		log.Println(mechSsf, qop)
 		// our response should be formatted the same way:
 		// replacing the first byte with the desired QOP value
 		out := nntoken.Payload
 		binary.BigEndian.PutUint32(out, maxOutBuf)
 		out[0] = byte(qop)
 
-		log.Println("Response:", out)
 		token := s.mech.Wrap(out)
 		// update our auth context with the chosen qop value *after* we wrap our response
 		// since the response should not be encrypted even if our future communications will be

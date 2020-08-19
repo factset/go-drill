@@ -3,7 +3,6 @@ package drill
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
 
 	"github.com/jcmturner/gokrb5/v8/gssapi"
@@ -98,7 +97,6 @@ func (d *Client) handleAuth() error {
 		return err
 	}
 
-	log.Println("InitAuthPayload")
 	d.dataEncoder.Write(d.conn, rpc.RpcMode_REQUEST, user.RpcType_SASL_MESSAGE, d.nextCoordID(), &shared.SaslMessage{
 		Mechanism: &d.Opts.Auth,
 		Data:      token,
@@ -112,7 +110,6 @@ func (d *Client) handleAuth() error {
 	}
 
 	for saslResp.GetStatus() == shared.SaslStatus_SASL_IN_PROGRESS {
-		log.Println("Step")
 		token, st := wrapper.Step(saslResp.GetData())
 		if st.Code != gssapi.StatusContinueNeeded && st.Code != gssapi.StatusComplete {
 			return errors.New(st.Error())
@@ -134,7 +131,6 @@ func (d *Client) handleAuth() error {
 		}
 	}
 
-	log.Println("completed negotiation", saslResp.GetStatus())
 	d.conn = wrapper.GetWrappedConn(d.conn)
 
 	return nil

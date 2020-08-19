@@ -51,7 +51,7 @@ func TestGssapiMechCtxFlags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := gssapiKrb5Mech{saslProps: tt.props}
 			assert.ElementsMatch(t,
-				append([]int{gssapi.ContextFlagMutual, gssapi.ContextFlagSequence},
+				append([]int{gssapi.ContextFlagMutual /*, gssapi.ContextFlagSequence*/},
 					tt.extraFlags...), g.getCtxFlags())
 		})
 	}

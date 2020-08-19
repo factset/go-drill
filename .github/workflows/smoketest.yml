@@ -122,9 +122,7 @@ jobs:
 
       - name: Run Smoke Test Kerberos
         if: ${{ matrix.kerberos }}
-        run: |
-          klist
-          go test -race -v -tags smoke,kerberos . -run ^Example_kerberos$
+        run: go test -race -v -tags smoke,kerberos . -run ^Example_kerberos$
 
       - name: print drill log
         if: ${{ failure() }}

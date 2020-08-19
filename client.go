@@ -211,7 +211,7 @@ func (d *Client) recvRoutine() {
 			}
 		case data := <-inbound:
 			if data.err != nil {
-				log.Printf("drill: read error: ", data.err)
+				log.Print("drill: read error: ", data.err)
 				return
 			}
 

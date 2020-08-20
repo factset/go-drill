@@ -12,6 +12,6 @@ require (
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/rs/zerolog v1.19.0
 	github.com/stretchr/testify v1.6.1
-	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de // indirect
+	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	google.golang.org/protobuf v1.25.0
 )

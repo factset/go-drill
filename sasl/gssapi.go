@@ -160,7 +160,11 @@ func (g *gssapiKrb5Token) Verify() (bool, gssapi.Status) {
 // Context will return a context.Context that also contains the opaque auth context
 // embedded in it so that it can be used and passed around
 func (g *gssapiKrb5Token) Context() context.Context {
-	return context.WithValue(g.krb5Tok.Context(), ctxAuthCtx, g.ctx)
+	ctx := g.krb5Tok.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, ctxAuthCtx, g.ctx)
 }
 
 // getCtxFlags will provide the list of flags to pass to gssapi creation

@@ -222,7 +222,12 @@ func (d *Client) recvRoutine() {
 			switch data.msg.GetHeader().GetRpcType() {
 			case int32(user.RpcType_ACK):
 				continue
-			case int32(user.RpcType_QUERY_HANDLE):
+			case int32(user.RpcType_SERVER_META),
+				int32(user.RpcType_SCHEMAS),
+				int32(user.RpcType_CATALOGS),
+				int32(user.RpcType_TABLES),
+				int32(user.RpcType_COLUMNS),
+				int32(user.RpcType_QUERY_HANDLE):
 				c, ok := d.queryMap.Load(data.msg.Header.GetCoordinationId())
 				if !ok || c == nil {
 					log.Print("couldn't find query channel for response")
@@ -358,32 +363,11 @@ func (d *Client) ConnectWithZK(ctx context.Context, zkNode ...string) error {
 	return d.Connect(ctx)
 }
 
-func (d *Client) MakeMetaRequest() *user.ServerMeta {
-	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_GET_SERVER_META, d.nextCoordID(), &user.GetServerMetaReq{})
-	if err != nil {
-		panic(err)
-	}
-
-	data := makePrefixedMessage(encoded)
-	d.conn.Write(data)
-
-	resp := &user.GetServerMetaResp{}
-	hdr, err := readPrefixedMessage(d.conn, resp)
-	fmt.Println(hdr)
-	fmt.Println(resp.GetStatus())
-	fmt.Println(resp.GetError())
-	return resp.ServerMeta
-}
-
-// PrepareQuery creates a prepared sql statement and returns a handle to it. This
-// handle can be used with any client connected to the same cluster in order to
-// actually execute it with ExecuteStmt.
-func (d *Client) PrepareQuery(plan string) (PreparedHandle, error) {
+func (d *Client) makeReqGetResp(mode rpc.RpcMode, msgType user.RpcType, req, resp proto.Message) error {
 	coord := d.nextCoordID()
-	req := &user.CreatePreparedStatementReq{SqlQuery: &plan}
-	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_CREATE_PREPARED_STATEMENT, coord, req)
+	encoded, err := encodeRPCMessage(mode, msgType, coord, req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	queryHandle := make(chan *rpc.CompleteRpcMessage)
@@ -393,13 +377,21 @@ func (d *Client) PrepareQuery(plan string) (PreparedHandle, error) {
 	d.outbound <- encoded
 	rsp, ok := <-queryHandle
 	if !ok || rsp == nil {
-		return nil, errors.New("failed to read")
+		return errors.New("failed to read")
 	}
-
 	close(queryHandle)
 
+	return proto.Unmarshal(rsp.GetProtobufBody(), resp)
+}
+
+// PrepareQuery creates a prepared sql statement and returns a handle to it. This
+// handle can be used with any client connected to the same cluster in order to
+// actually execute it with ExecuteStmt.
+func (d *Client) PrepareQuery(plan string) (PreparedHandle, error) {
+	req := &user.CreatePreparedStatementReq{SqlQuery: &plan}
+
 	resp := &user.CreatePreparedStatementResp{}
-	if err = proto.Unmarshal(rsp.GetProtobufBody(), resp); err != nil {
+	if err := d.makeReqGetResp(rpc.RpcMode_REQUEST, user.RpcType_CREATE_PREPARED_STATEMENT, req, resp); err != nil {
 		return nil, err
 	}
 
@@ -423,28 +415,8 @@ func (d *Client) SubmitQuery(t shared.QueryType, plan string) (DataHandler, erro
 		Plan:        &plan,
 	}
 
-	coord := d.nextCoordID()
-	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, coord, query)
-	if err != nil {
-		return nil, err
-	}
-
-	queryHandle := make(chan *rpc.CompleteRpcMessage)
-	d.queryMap.Store(coord, queryHandle)
-	defer d.queryMap.Delete(coord)
-
-	d.outbound <- encoded
-	rsp, ok := <-queryHandle
-	if !ok || rsp == nil {
-		return nil, errors.New("failed to read")
-	}
-
-	close(queryHandle)
-
 	resp := &shared.QueryId{}
-	err = proto.Unmarshal(rsp.ProtobufBody, resp)
-
-	if err != nil {
+	if err := d.makeReqGetResp(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, query, resp); err != nil {
 		return nil, err
 	}
 
@@ -466,31 +438,14 @@ func (d *Client) ExecuteStmt(hndl PreparedHandle) (DataHandler, error) {
 		return nil, errors.New("invalid prepared statement handle")
 	}
 
-	coord := d.nextCoordID()
-	encoded, err := encodeRPCMessage(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, coord, &user.RunQuery{
+	req := &user.RunQuery{
 		ResultsMode:             user.QueryResultsMode_STREAM_FULL.Enum(),
 		Type:                    shared.QueryType_PREPARED_STATEMENT.Enum(),
 		PreparedStatementHandle: prep.ServerHandle,
-	})
-	if err != nil {
-		return nil, err
 	}
-
-	queryHandle := make(chan *rpc.CompleteRpcMessage)
-	d.queryMap.Store(coord, queryHandle)
-	defer d.queryMap.Delete(coord)
-
-	d.outbound <- encoded
-	rsp, ok := <-queryHandle
-	if !ok || rsp == nil {
-		return nil, errors.New("failed to read")
-	}
-
-	close(queryHandle)
 
 	resp := &shared.QueryId{}
-	err = proto.Unmarshal(rsp.GetProtobufBody(), resp)
-	if err != nil {
+	if err := d.makeReqGetResp(rpc.RpcMode_REQUEST, user.RpcType_RUN_QUERY, req, resp); err != nil {
 		return nil, err
 	}
 

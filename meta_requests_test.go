@@ -395,5 +395,5 @@ func TestClientGetColumnsErr(t *testing.T) {
 
 	meta, err := cl.GetColumns("", "", "", "", nil)
 	assert.Nil(t, meta)
-	assert.EqualError(t, err, "get_meta error: error fail")
+	assert.EqualError(t, err, "get_columns error: error fail")
 }

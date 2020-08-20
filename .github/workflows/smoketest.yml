@@ -118,18 +118,18 @@ jobs:
 
       - name: Run smoke test
         if: ${{ !matrix.kerberos }}
-        run: go test -race -v -tags smoke -coverprofile coverage.out . -run ^Example$
+        run: go run github.com/ory/go-acc -o coverage.out . ./sasl ./internal/data -- -race -v -tags smoke -run ^Example$
 
       - name: Run Smoke Test Kerberos
         if: ${{ matrix.kerberos }}
-        run: go test -race -v -tags smoke,kerberos -coverprofile coverage.out . -run ^Example_kerberos$
+        run: go run github.com/ory/go-acc -o coverage.out . ./sasl ./internal/data -- -race -v -tags smoke,kerberos -run ^Example_kerberos$
 
       - name: Codecov
         uses: codecov/codecov-action@v1.0.12
         with:
           file: coverage.out
           flags: smoketest
-    
+
       - name: print drill log
         if: ${{ failure() }}
         run: cat /opt/drill/log/drillbit.log /opt/drill/log/drillbit.out

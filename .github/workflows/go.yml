@@ -33,7 +33,7 @@ jobs:
       run: go build -v .
 
     - name: Test
-      run: go test -race -v . ./sasl ./driver ./internal/data -coverprofile coverage.out
+      run: go run github.com/ory/go-acc -o coverage.out . ./sasl ./driver ./internal/data -- -race -v
 
     - name: Codecov
       uses: codecov/codecov-action@v1.0.12

@@ -65,15 +65,16 @@ func (r *rows) ColumnTypeLength(index int) (int64, bool) {
 func (r *rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
 	typ := r.handle.GetRecordBatch().Def.GetField()[index].GetMajorType()
 	switch typ.GetMinorType() {
-	case common.MinorType_DECIMAL9:
-	case common.MinorType_DECIMAL18:
-	case common.MinorType_DECIMAL28SPARSE:
-	case common.MinorType_DECIMAL38SPARSE:
-	case common.MinorType_MONEY:
-	case common.MinorType_FLOAT4:
-	case common.MinorType_FLOAT8:
-	case common.MinorType_DECIMAL28DENSE:
-	case common.MinorType_DECIMAL38DENSE:
+	case common.MinorType_DECIMAL9,
+		common.MinorType_DECIMAL18,
+		common.MinorType_DECIMAL28SPARSE,
+		common.MinorType_DECIMAL38SPARSE,
+		common.MinorType_MONEY,
+		common.MinorType_FLOAT4,
+		common.MinorType_FLOAT8,
+		common.MinorType_DECIMAL28DENSE,
+		common.MinorType_DECIMAL38DENSE:
+
 		precision = int64(typ.GetPrecision())
 		scale = int64(typ.GetScale())
 		ok = true

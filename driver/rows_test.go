@@ -223,3 +223,51 @@ func TestRowsColumnTypeHelpers(t *testing.T) {
 		})
 	}
 }
+
+func TestColumnPrecisionScaleNoVal(t *testing.T) {
+	mr := new(mockResHandle)
+	mr.Test(t)
+	defer mr.AssertExpectations(t)
+
+	mr.On("GetRecordBatch").Return(getSampleRecordBatch())
+
+	r := &rows{handle: mr, curRow: 0}
+	p, s, ok := r.ColumnTypePrecisionScale(0)
+	assert.False(t, ok)
+	assert.Zero(t, p)
+	assert.Zero(t, s)
+
+	p, s, ok = r.ColumnTypePrecisionScale(1)
+	assert.False(t, ok)
+	assert.Zero(t, p)
+	assert.Zero(t, s)
+}
+
+func TestColumnPrecisionScale(t *testing.T) {
+	rb := &drill.RecordBatch{}
+
+	rb.Def = &shared.RecordBatchDef{
+		Field: []*shared.SerializedField{
+			{
+				MajorType: &common.MajorType{
+					MinorType: common.MinorType_FLOAT4.Enum(),
+					Mode:      common.DataMode_REQUIRED.Enum(),
+					Precision: proto.Int32(4),
+					Scale:     proto.Int32(25),
+				},
+			},
+		},
+	}
+
+	mr := new(mockResHandle)
+	mr.Test(t)
+	defer mr.AssertExpectations(t)
+
+	mr.On("GetRecordBatch").Return(rb)
+
+	r := &rows{handle: mr, curRow: 0}
+	p, s, ok := r.ColumnTypePrecisionScale(0)
+	assert.True(t, ok)
+	assert.EqualValues(t, 4, p)
+	assert.EqualValues(t, 25, s)
+}

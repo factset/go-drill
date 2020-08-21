@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"math"
 	"reflect"
-	"time"
 	"unsafe"
 
 	"github.com/zeroshade/go-drill/internal/rpc/proto/common"
@@ -210,48 +209,6 @@ func NewNullableVarcharVector(data []byte, meta *shared.SerializedField) *Nullab
 	}
 }
 
-type TimestampVector struct {
-	*Int64Vector
-}
-
-func NewTimestampVector(data []byte, meta *shared.SerializedField) *TimestampVector {
-	return &TimestampVector{
-		NewInt64Vector(data, meta),
-	}
-}
-
-func (v *TimestampVector) Get(index uint) time.Time {
-	ts := v.Int64Vector.Get(index)
-	return time.Unix(ts/1000, ts%1000)
-}
-
-func (v *TimestampVector) Value(index uint) interface{} {
-	return v.Get(index)
-}
-
-type NullableTimestampVector struct {
-	*NullableInt64Vector
-}
-
-func (v *NullableTimestampVector) Get(index uint) time.Time {
-	ts := v.NullableInt64Vector.Get(index)
-	if ts == nil {
-		return time.Time{}
-	}
-
-	return time.Unix(*ts/1000, *ts%1000)
-}
-
-func (v *NullableTimestampVector) Value(index uint) interface{} {
-	return v.Get(index)
-}
-
-func NewNullableTimestampVector(data []byte, meta *shared.SerializedField) *NullableTimestampVector {
-	return &NullableTimestampVector{
-		NewNullableInt64Vector(data, meta),
-	}
-}
-
 func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 	ret := NewNumericValueVec(rawData, meta)
 	if ret != nil {
@@ -264,9 +221,18 @@ func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 			return NewNullableVarcharVector(rawData, meta)
 		case common.MinorType_TIMESTAMP:
 			return NewNullableTimestampVector(rawData, meta)
+		case common.MinorType_DATE:
+			return NewNullableDateVector(rawData, meta)
+		case common.MinorType_TIME:
+			return NewNullableTimeVector(rawData, meta)
+		case common.MinorType_INTERVAL:
+			return NewNullableIntervalVector(rawData, meta)
+		case common.MinorType_INTERVALDAY:
+			return NewNullableIntervalDayVector(rawData, meta)
+		case common.MinorType_INTERVALYEAR:
+			return NewNullableIntervalYearVector(rawData, meta)
 		}
 	} else {
-
 		switch meta.GetMajorType().GetMinorType() {
 		case common.MinorType_VARBINARY:
 			return NewVarbinaryVector(rawData, meta)
@@ -276,6 +242,16 @@ func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 			return NewBitVector(rawData, meta)
 		case common.MinorType_TIMESTAMP:
 			return NewTimestampVector(rawData, meta)
+		case common.MinorType_DATE:
+			return NewDateVector(rawData, meta)
+		case common.MinorType_TIME:
+			return NewTimeVector(rawData, meta)
+		case common.MinorType_INTERVAL:
+			return NewIntervalVector(rawData, meta)
+		case common.MinorType_INTERVALDAY:
+			return NewIntervalDayVector(rawData, meta)
+		case common.MinorType_INTERVALYEAR:
+			return NewIntervalYearVector(rawData, meta)
 		}
 	}
 

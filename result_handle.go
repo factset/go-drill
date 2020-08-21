@@ -175,12 +175,6 @@ func (r *ResultHandle) nextBatch() {
 		return
 	}
 
-	// b, _ := proto.Marshal(q.msg)
-	// fmt.Println(q.typ)
-	// fmt.Println(q.msg)
-	// fmt.Println(hex.EncodeToString(b))
-	// fmt.Println(hex.EncodeToString(q.raw))
-
 	switch q.typ {
 	case int32(user.RpcType_QUERY_DATA):
 		// more data!

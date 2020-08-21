@@ -250,6 +250,141 @@ func TestNullableTimestampVector(t *testing.T) {
 	}
 }
 
+func TestDateVector(t *testing.T) {
+	meta := &shared.SerializedField{
+		ValueCount:   proto.Int32(1),
+		BufferLength: proto.Int32(8),
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_DATE.Enum(), Mode: common.DataMode_REQUIRED.Enum(),
+		},
+		NamePart: &shared.NamePart{Name: proto.String("EXPR$0")},
+	}
+
+	bindata := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bindata, 1203724800000)
+
+	vec := data.NewValueVec(bindata, meta)
+	date, _ := time.ParseInLocation(time.RFC3339, "2008-02-23T00:00:00+00:00", time.UTC)
+
+	assert.Equal(t, date, vec.Value(0))
+
+	bytemap := []byte{0}
+	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
+	vec = data.NewValueVec(append(bytemap, bindata...), meta)
+	assert.Zero(t, vec.Value(0))
+}
+
+func TestTimeVector(t *testing.T) {
+	meta := &shared.SerializedField{
+		ValueCount:   proto.Int32(1),
+		BufferLength: proto.Int32(4),
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_TIME.Enum(), Mode: common.DataMode_REQUIRED.Enum(),
+		},
+		NamePart: &shared.NamePart{Name: proto.String("EXPR$0")},
+	}
+
+	bindata := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bindata, 44614000)
+
+	vec := data.NewValueVec(bindata, meta)
+	exptime, _ := time.ParseInLocation("15:04:05 MST", "12:23:34 UTC", time.UTC)
+	assert.Equal(t, exptime, vec.Value(0))
+
+	bytemap := []byte{0}
+	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
+	vec = data.NewValueVec(append(bytemap, bindata...), meta)
+	assert.Zero(t, vec.Value(0))
+}
+
+func TestIntervalYearVector(t *testing.T) {
+	rawbin := []byte{0xf4, 0xff, 0xff, 0xff}
+
+	meta := &shared.SerializedField{
+		ValueCount:   proto.Int32(1),
+		BufferLength: proto.Int32(4),
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_INTERVALYEAR.Enum(), Mode: common.DataMode_REQUIRED.Enum(),
+		},
+		NamePart: &shared.NamePart{Name: proto.String("EXPR$0")},
+	}
+
+	vec := data.NewValueVec(rawbin, meta)
+	assert.EqualValues(t, "-1-0", vec.Value(0))
+
+	bytemap := []byte{0}
+	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
+	vec = data.NewValueVec(append(bytemap, rawbin...), meta)
+	assert.Nil(t, vec.Value(0))
+}
+
+func TestIntervalDayVector(t *testing.T) {
+	bindata := []byte{0x02, 0x00, 0x00, 0x00, 0x2b, 0x16, 0x38, 0x02, 0x11, 0x00, 0x00, 0x00}
+
+	meta := &shared.SerializedField{
+		ValueCount:   proto.Int32(1),
+		BufferLength: proto.Int32(8),
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_INTERVALDAY.Enum(), Mode: common.DataMode_REQUIRED.Enum(),
+		},
+		NamePart: &shared.NamePart{Name: proto.String("EXPR$0")},
+	}
+
+	vec := data.NewValueVec(bindata, meta)
+	assert.EqualValues(t, "2 days 10h20m30.123s", vec.Value(0))
+
+	bindata = []byte{0xFE, 0xFF, 0xFF, 0xFF, 0xD5, 0xE9, 0xC7, 0xFD, 0x11, 0x00, 0x00, 0x00}
+	vec = data.NewValueVec(bindata, meta)
+	assert.EqualValues(t, "-2 days 10h20m30.123s", vec.Value(0))
+
+	bytemap := []byte{0}
+	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
+	vec = data.NewValueVec(append(bytemap, bindata...), meta)
+	assert.Nil(t, vec.Value(0))
+}
+
+func TestIntervalFull(t *testing.T) {
+	bindata := make([]byte, 12)
+	binary.LittleEndian.PutUint32(bindata, 13)
+	binary.LittleEndian.PutUint32(bindata[4:], 120)
+	binary.LittleEndian.PutUint32(bindata[8:], uint32(time.Duration(10*time.Hour+20*time.Minute+30*time.Second).Milliseconds()))
+
+	meta := &shared.SerializedField{
+		ValueCount:   proto.Int32(1),
+		BufferLength: proto.Int32(12),
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_INTERVAL.Enum(), Mode: common.DataMode_REQUIRED.Enum(),
+		},
+		NamePart: &shared.NamePart{Name: proto.String("EXPR$0")},
+	}
+
+	vec := data.NewValueVec(bindata, meta)
+	assert.EqualValues(t, "1-1-120 10h20m30s", vec.Value(0))
+
+	assert.EqualValues(t, reflect.TypeOf(string("")), vec.Type())
+	l, ok := vec.TypeLen()
+	assert.Zero(t, l)
+	assert.False(t, ok)
+
+	assert.EqualValues(t, 1, vec.Len())
+
+	bytemap := []byte{1}
+	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
+	vec = data.NewValueVec(append(bytemap, bindata...), meta)
+	assert.EqualValues(t, "1-1-120 10h20m30s", vec.Value(0))
+
+	v := int32(-13)
+	binary.LittleEndian.PutUint32(bindata, uint32(v))
+	v = int32(-10)
+	binary.LittleEndian.PutUint32(bindata[4:], uint32(v))
+	v = int32(time.Duration(10*time.Hour + 20*time.Minute + 30*time.Second).Milliseconds())
+	binary.LittleEndian.PutUint32(bindata[8:], uint32(v))
+
+	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
+	vec = data.NewValueVec(append(bytemap, bindata...), meta)
+	assert.EqualValues(t, "-1-1-10 10h20m30s", vec.Value(0))
+}
+
 func TestValueVecNil(t *testing.T) {
 	assert.Nil(t, data.NewValueVec(nil, &shared.SerializedField{
 		MajorType: &common.MajorType{

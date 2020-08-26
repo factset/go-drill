@@ -29,11 +29,19 @@ func (d *Client) doHandshake() error {
 			MinorVersion: proto.Uint32(drillMinorVersion),
 			PatchVersion: proto.Uint32(drillPatchVersion),
 		},
+		Credentials: &shared.UserCredentials{
+			UserName: &d.Opts.User,
+		},
 		Properties: &user.UserProperties{
 			Properties: []*user.Property{
 				{Key: proto.String("schema"), Value: &d.Opts.Schema},
+				{Key: proto.String("userName"), Value: &d.Opts.User},
 			},
 		},
+	}
+
+	if d.Opts.Passwd != "" && (d.Opts.Auth == "PLAIN" || d.Opts.Auth == "") {
+		u2b.Properties.Properties = append(u2b.Properties.Properties, &user.Property{Key: proto.String("password"), Value: &d.Opts.Passwd})
 	}
 
 	_, err := d.dataEncoder.Write(d.conn, rpc.RpcMode_REQUEST, user.RpcType_HANDSHAKE, d.nextCoordID(), &u2b)

@@ -32,7 +32,8 @@ type Options struct {
 	// what Application Name to use for connecting to the server
 	ApplicationName string
 	// the username to authenticate as
-	User string
+	User   string
+	Passwd string
 	// the heartbeatfrequency to use, if nil then will use the default (15 seconds)
 	// set to 0 to disable it.
 	HeartbeatFreq *time.Duration

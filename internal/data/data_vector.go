@@ -2,7 +2,9 @@ package data
 
 import (
 	"encoding/binary"
+	"log"
 	"math"
+	"math/big"
 	"reflect"
 	"unsafe"
 
@@ -209,6 +211,63 @@ func NewNullableVarcharVector(data []byte, meta *shared.SerializedField) *Nullab
 	}
 }
 
+type DecimalVector struct {
+	*fixedWidthVec
+
+	traits DecimalTraits
+	scale  int
+	prec   int32
+}
+
+func NewDecimalVector(data []byte, meta *shared.SerializedField, traits DecimalTraits) *DecimalVector {
+	return &DecimalVector{
+		fixedWidthVec: &fixedWidthVec{data: data, valsz: traits.ByteWidth(), meta: meta},
+		scale:         int(meta.MajorType.GetScale()),
+		prec:          meta.MajorType.GetPrecision(),
+		traits:        traits,
+	}
+}
+
+func (dv *DecimalVector) Get(index uint) *big.Float {
+	valbytes := dv.getval(int(index))
+
+	return getFloatFromBytes(valbytes, dv.traits.NumDigits(), dv.scale, dv.traits.IsSparse())
+}
+
+func (dv *DecimalVector) Value(index uint) interface{} {
+	return dv.Get(index)
+}
+
+type NullableDecimalVector struct {
+	*nullableFixedWidthVec
+
+	traits DecimalTraits
+	scale  int
+	prec   int32
+}
+
+func (dv *NullableDecimalVector) Get(index uint) *big.Float {
+	valbytes := dv.getval(int(index))
+	if valbytes == nil {
+		return nil
+	}
+
+	return getFloatFromBytes(valbytes, dv.traits.NumDigits(), dv.scale, dv.traits.IsSparse())
+}
+
+func (dv *NullableDecimalVector) Value(index uint) interface{} {
+	return dv.Get(index)
+}
+
+func NewNullableDecimalVector(data []byte, meta *shared.SerializedField, traits DecimalTraits) *NullableDecimalVector {
+	return &NullableDecimalVector{
+		nullableFixedWidthVec: newNullableFixedWidth(data, meta, traits.ByteWidth()),
+		scale:                 int(meta.MajorType.GetScale()),
+		prec:                  meta.MajorType.GetPrecision(),
+		traits:                traits,
+	}
+}
+
 func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 	ret := NewNumericValueVec(rawData, meta)
 	if ret != nil {
@@ -217,6 +276,8 @@ func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 
 	if meta.GetMajorType().GetMode() == common.DataMode_OPTIONAL {
 		switch meta.GetMajorType().GetMinorType() {
+		case common.MinorType_BIT:
+			return NewNullableBitVector(rawData, meta)
 		case common.MinorType_VARCHAR:
 			return NewNullableVarcharVector(rawData, meta)
 		case common.MinorType_TIMESTAMP:
@@ -231,6 +292,10 @@ func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 			return NewNullableIntervalDayVector(rawData, meta)
 		case common.MinorType_INTERVALYEAR:
 			return NewNullableIntervalYearVector(rawData, meta)
+		case common.MinorType_DECIMAL28SPARSE:
+			return NewNullableDecimalVector(rawData, meta, &Decimal28SparseTraits)
+		case common.MinorType_DECIMAL38SPARSE:
+			return NewNullableDecimalVector(rawData, meta, &Decimal38SparseTraits)
 		}
 	} else {
 		switch meta.GetMajorType().GetMinorType() {
@@ -252,8 +317,15 @@ func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 			return NewIntervalDayVector(rawData, meta)
 		case common.MinorType_INTERVALYEAR:
 			return NewIntervalYearVector(rawData, meta)
+		case common.MinorType_DECIMAL28SPARSE:
+			return NewDecimalVector(rawData, meta, &Decimal28SparseTraits)
+		case common.MinorType_DECIMAL38SPARSE:
+			return NewDecimalVector(rawData, meta, &Decimal38SparseTraits)
 		}
 	}
+
+	log.Println(rawData)
+	log.Println(meta)
 
 	return nil
 }

@@ -3,6 +3,7 @@ package data_test
 import (
 	"encoding/binary"
 	"math"
+	"math/big"
 	"reflect"
 	"testing"
 	"time"
@@ -391,4 +392,54 @@ func TestValueVecNil(t *testing.T) {
 			MinorType: common.MinorType_LATE.Enum(),
 		},
 	}))
+}
+
+var val1 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x50, 0x76, 0x33, 0x0B}
+var val2 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF8, 0x03, 0x68, 0x0F}
+var val3 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x18, 0x77, 0x2F, 0x14}
+var val4 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0xD8, 0x4E, 0xDA, 0x17}
+var val5 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0xF8, 0x5B, 0x11, 0x22}
+
+var resultVals = []string{"0.187922", "0.258475", "0.338655", "1.400183", "2.571563"}
+
+func TestDecimal38Sparse(t *testing.T) {
+	buffer := append(val1, val2...)
+	buffer = append(buffer, val3...)
+	buffer = append(buffer, val4...)
+	buffer = append(buffer, val5...)
+
+	meta := &shared.SerializedField{
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_DECIMAL38SPARSE.Enum(),
+			Mode:      common.DataMode_REQUIRED.Enum(),
+			Scale:     proto.Int32(6),
+			Precision: proto.Int32(20),
+		},
+		BufferLength: proto.Int32(120),
+		ValueCount:   proto.Int32(5),
+	}
+
+	vec := data.NewValueVec(buffer, meta)
+	for i := 0; i < vec.Len(); i++ {
+		val := vec.Value(uint(i))
+		assert.NotNil(t, val)
+
+		assert.IsType(t, (*big.Float)(nil), val)
+		assert.EqualValues(t, resultVals[i], val.(*big.Float).String())
+	}
+
+	bytemap := []byte{1, 0, 1, 0, 1}
+	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
+	vec = data.NewValueVec(append(bytemap, buffer...), meta)
+	for i := 0; i < vec.Len(); i++ {
+		val := vec.Value(uint(i))
+
+		if i%2 == 0 {
+			assert.NotNil(t, val)
+			assert.IsType(t, (*big.Float)(nil), val)
+			assert.EqualValues(t, resultVals[i], val.(*big.Float).String())
+		} else {
+			assert.Nil(t, val)
+		}
+	}
 }

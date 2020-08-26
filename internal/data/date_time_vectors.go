@@ -130,26 +130,26 @@ type intervalBase interface {
 	getval(index int) []byte
 }
 
-type intervalBaseVec struct {
+type fixedWidthVec struct {
 	data  []byte
 	valsz int
 
 	meta *shared.SerializedField
 }
 
-func (intervalBaseVec) Type() reflect.Type {
+func (fixedWidthVec) Type() reflect.Type {
 	return reflect.TypeOf(string(""))
 }
 
-func (intervalBaseVec) TypeLen() (int64, bool) {
+func (fixedWidthVec) TypeLen() (int64, bool) {
 	return 0, false
 }
 
-func (v *intervalBaseVec) Len() int {
+func (v *fixedWidthVec) Len() int {
 	return int(v.meta.GetValueCount())
 }
 
-func (v *intervalBaseVec) getval(index int) []byte {
+func (v *fixedWidthVec) getval(index int) []byte {
 	start := index * v.valsz
 	return v.data[start : start+v.valsz]
 }
@@ -159,28 +159,28 @@ type nullableIntervalBase interface {
 	IsNull(index uint) bool
 }
 
-type nullableIntervalVecBase struct {
-	*intervalBaseVec
+type nullableFixedWidthVec struct {
+	*fixedWidthVec
 	byteMap []byte
 }
 
-func (nv *nullableIntervalVecBase) IsNull(index uint) bool {
+func (nv *nullableFixedWidthVec) IsNull(index uint) bool {
 	return nv.byteMap[index] == 0
 }
 
-func (nv *nullableIntervalVecBase) getval(index int) []byte {
+func (nv *nullableFixedWidthVec) getval(index int) []byte {
 	if nv.IsNull(uint(index)) {
 		return nil
 	}
-	return nv.intervalBaseVec.getval(index)
+	return nv.fixedWidthVec.getval(index)
 }
 
-func newNullableIntervalBase(data []byte, meta *shared.SerializedField, valsz int) *nullableIntervalVecBase {
+func newNullableFixedWidth(data []byte, meta *shared.SerializedField, valsz int) *nullableFixedWidthVec {
 	byteMap := data[:meta.GetValueCount()]
 	remaining := data[meta.GetValueCount():]
 
-	return &nullableIntervalVecBase{
-		&intervalBaseVec{remaining, valsz, meta},
+	return &nullableFixedWidthVec{
+		&fixedWidthVec{remaining, valsz, meta},
 		byteMap,
 	}
 }
@@ -290,42 +290,42 @@ func processInterval(val []byte) string {
 
 func NewIntervalYearVector(data []byte, meta *shared.SerializedField) *intervalVector {
 	return &intervalVector{
-		intervalBase: &intervalBaseVec{data, 4, meta},
+		intervalBase: &fixedWidthVec{data, 4, meta},
 		process:      processYear,
 	}
 }
 
 func NewNullableIntervalYearVector(data []byte, meta *shared.SerializedField) *nullableIntervalVector {
 	return &nullableIntervalVector{
-		newNullableIntervalBase(data, meta, 4),
+		newNullableFixedWidth(data, meta, 4),
 		processYear,
 	}
 }
 
 func NewIntervalDayVector(data []byte, meta *shared.SerializedField) *intervalVector {
 	return &intervalVector{
-		intervalBase: &intervalBaseVec{data, 8, meta},
+		intervalBase: &fixedWidthVec{data, 8, meta},
 		process:      processDay,
 	}
 }
 
 func NewNullableIntervalDayVector(data []byte, meta *shared.SerializedField) *nullableIntervalVector {
 	return &nullableIntervalVector{
-		newNullableIntervalBase(data, meta, 8),
+		newNullableFixedWidth(data, meta, 8),
 		processDay,
 	}
 }
 
 func NewIntervalVector(data []byte, meta *shared.SerializedField) *intervalVector {
 	return &intervalVector{
-		intervalBase: &intervalBaseVec{data, 12, meta},
+		intervalBase: &fixedWidthVec{data, 12, meta},
 		process:      processInterval,
 	}
 }
 
 func NewNullableIntervalVector(data []byte, meta *shared.SerializedField) *nullableIntervalVector {
 	return &nullableIntervalVector{
-		newNullableIntervalBase(data, meta, 12),
+		newNullableFixedWidth(data, meta, 12),
 		processInterval,
 	}
 }

@@ -43,6 +43,12 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 		switch strings.TrimSpace(parsed[0]) {
 		case "zk":
 			zknodes = strings.Split(parsed[1], ",")
+			slash := strings.Index(zknodes[len(zknodes)-1], "/")
+			if slash != -1 {
+				addr := zknodes[len(zknodes)-1]
+				zknodes[len(zknodes)-1] = addr[:slash]
+				opts.ZKPath = addr[slash:]
+			}
 		case "auth":
 			opts.Auth = parsed[1]
 		case "schema":
@@ -57,6 +63,8 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 			opts.SaslEncrypt = val
 		case "user":
 			opts.User = parsed[1]
+		case "pass":
+			opts.Passwd = parsed[1]
 		case "cluster":
 			opts.ClusterName = parsed[1]
 		case "heartbeat":

@@ -2,7 +2,6 @@ package data
 
 import (
 	"encoding/binary"
-	"log"
 	"math"
 	"math/big"
 	"reflect"
@@ -323,9 +322,6 @@ func NewValueVec(rawData []byte, meta *shared.SerializedField) DataVector {
 			return NewDecimalVector(rawData, meta, &Decimal38SparseTraits)
 		}
 	}
-
-	log.Println(rawData)
-	log.Println(meta)
 
 	return nil
 }

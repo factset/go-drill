@@ -41,10 +41,15 @@ func TestBitVector(t *testing.T) {
 }
 
 func TestNullableBitVector(t *testing.T) {
-	meta := &shared.SerializedField{ValueCount: proto.Int32(8)}
+	meta := &shared.SerializedField{
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_BIT.Enum(),
+		},
+		ValueCount: proto.Int32(8),
+	}
 	bytemap := []byte{0, 1, 0, 1, 0, 1, 0, 1}
 	// bit pattern of 0xaa is 10101010
-	vec := data.NewNullableBitVector(append(bytemap, []byte{0xaa}...), meta)
+	vec := data.NewValueVec(append(bytemap, []byte{0xaa}...), meta)
 
 	assert.Exactly(t, reflect.TypeOf(bool(false)), vec.Type())
 	assert.Equal(t, 8, vec.Len())
@@ -54,12 +59,12 @@ func TestNullableBitVector(t *testing.T) {
 	assert.False(t, ok)
 
 	for i := 0; i < 8; i++ {
-		assert.Equal(t, i%2 == 0, vec.IsNull(uint(i)))
+		assert.Equal(t, i%2 == 0, vec.(data.NullableDataVector).IsNull(uint(i)))
 		if i%2 == 0 {
-			assert.Nil(t, vec.Get(uint(i)))
+			assert.Nil(t, vec.(*data.NullableBitVector).Get(uint(i)))
 			assert.Nil(t, vec.Value(uint(i)))
 		} else {
-			assert.Exactly(t, proto.Bool(true), vec.Get(uint(i)))
+			assert.Exactly(t, proto.Bool(true), vec.(*data.NullableBitVector).Get(uint(i)))
 			assert.Exactly(t, true, vec.Value(uint(i)))
 		}
 	}
@@ -394,19 +399,19 @@ func TestValueVecNil(t *testing.T) {
 	}))
 }
 
-var val1 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x50, 0x76, 0x33, 0x0B}
-var val2 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF8, 0x03, 0x68, 0x0F}
-var val3 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x18, 0x77, 0x2F, 0x14}
-var val4 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0xD8, 0x4E, 0xDA, 0x17}
-var val5 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0xF8, 0x5B, 0x11, 0x22}
+var d38sparse1 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x50, 0x76, 0x33, 0x0B}
+var d38sparse2 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF8, 0x03, 0x68, 0x0F}
+var d38sparse3 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x18, 0x77, 0x2F, 0x14}
+var d38sparse4 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0xD8, 0x4E, 0xDA, 0x17}
+var d38sparse5 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0xF8, 0x5B, 0x11, 0x22}
 
-var resultVals = []string{"0.187922", "0.258475", "0.338655", "1.400183", "2.571563"}
+var d38sparseResults = []string{"0.187922", "0.258475", "0.338655", "1.400183", "2.571563"}
 
 func TestDecimal38Sparse(t *testing.T) {
-	buffer := append(val1, val2...)
-	buffer = append(buffer, val3...)
-	buffer = append(buffer, val4...)
-	buffer = append(buffer, val5...)
+	buffer := append(d38sparse1, d38sparse2...)
+	buffer = append(buffer, d38sparse3...)
+	buffer = append(buffer, d38sparse4...)
+	buffer = append(buffer, d38sparse5...)
 
 	meta := &shared.SerializedField{
 		MajorType: &common.MajorType{
@@ -425,7 +430,7 @@ func TestDecimal38Sparse(t *testing.T) {
 		assert.NotNil(t, val)
 
 		assert.IsType(t, (*big.Float)(nil), val)
-		assert.EqualValues(t, resultVals[i], val.(*big.Float).String())
+		assert.EqualValues(t, d38sparseResults[i], val.(*big.Float).String())
 	}
 
 	bytemap := []byte{1, 0, 1, 0, 1}
@@ -437,7 +442,58 @@ func TestDecimal38Sparse(t *testing.T) {
 		if i%2 == 0 {
 			assert.NotNil(t, val)
 			assert.IsType(t, (*big.Float)(nil), val)
-			assert.EqualValues(t, resultVals[i], val.(*big.Float).String())
+			assert.EqualValues(t, d38sparseResults[i], val.(*big.Float).String())
+		} else {
+			assert.Nil(t, val)
+		}
+	}
+}
+
+// adding the 128 byte makes some of them negative to test with
+var d28sparse1 = []byte{0, 0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x50, 0x76, 0x33, 0x0B}
+var d28sparse2 = []byte{0, 0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xF8, 0x03, 0x68, 0x0F}
+var d28sparse3 = []byte{0, 0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x18, 0x77, 0x2F, 0x14}
+var d28sparse4 = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0xD8, 0x4E, 0xDA, 0x17}
+var d28sparse5 = []byte{0, 0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0xF8, 0x5B, 0x11, 0x22}
+
+var d28sparseResults = []string{"-0.187922", "-0.258475", "-0.338655", "1.400183", "-2.571563"}
+
+func TestDecimal28Sparse(t *testing.T) {
+	buffer := append(d28sparse1, d28sparse2...)
+	buffer = append(buffer, d28sparse3...)
+	buffer = append(buffer, d28sparse4...)
+	buffer = append(buffer, d28sparse5...)
+
+	meta := &shared.SerializedField{
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_DECIMAL28SPARSE.Enum(),
+			Mode:      common.DataMode_REQUIRED.Enum(),
+			Scale:     proto.Int32(5),
+			Precision: proto.Int32(20),
+		},
+		BufferLength: proto.Int32(100),
+		ValueCount:   proto.Int32(5),
+	}
+
+	vec := data.NewValueVec(buffer, meta)
+	for i := 0; i < vec.Len(); i++ {
+		val := vec.Value(uint(i))
+		assert.NotNil(t, val)
+
+		assert.IsType(t, (*big.Float)(nil), val)
+		assert.EqualValues(t, d28sparseResults[i], val.(*big.Float).String())
+	}
+
+	bytemap := []byte{1, 0, 1, 0, 1}
+	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
+	vec = data.NewValueVec(append(bytemap, buffer...), meta)
+	for i := 0; i < vec.Len(); i++ {
+		val := vec.Value(uint(i))
+
+		if i%2 == 0 {
+			assert.NotNil(t, val)
+			assert.IsType(t, (*big.Float)(nil), val)
+			assert.EqualValues(t, d28sparseResults[i], val.(*big.Float).String())
 		} else {
 			assert.Nil(t, val)
 		}

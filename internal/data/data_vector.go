@@ -229,6 +229,9 @@ func NewDecimalVector(data []byte, meta *shared.SerializedField, traits DecimalT
 
 func (dv *DecimalVector) Get(index uint) *big.Float {
 	valbytes := dv.getval(int(index))
+	if !dv.traits.IsSparse() {
+		panic("go-drill: currently only supports decimal sparse vectors, not dense")
+	}
 
 	return getFloatFromBytes(valbytes, dv.traits.NumDigits(), dv.scale, dv.traits.IsSparse())
 }
@@ -251,6 +254,9 @@ func (dv *NullableDecimalVector) Get(index uint) *big.Float {
 		return nil
 	}
 
+	if !dv.traits.IsSparse() {
+		panic("go-drill: currently only supports decimal sparse vectors, not dense")
+	}
 	return getFloatFromBytes(valbytes, dv.traits.NumDigits(), dv.scale, dv.traits.IsSparse())
 }
 

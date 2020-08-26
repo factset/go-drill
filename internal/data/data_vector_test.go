@@ -499,3 +499,57 @@ func TestDecimal28Sparse(t *testing.T) {
 		}
 	}
 }
+
+func TestDecimalDense(t *testing.T) {
+	buffer := append(d38sparse1, d38sparse2...)
+	buffer = append(buffer, d38sparse3...)
+	buffer = append(buffer, d38sparse4...)
+	buffer = append(buffer, d38sparse5...)
+
+	meta := &shared.SerializedField{
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_DECIMAL38DENSE.Enum(),
+			Mode:      common.DataMode_REQUIRED.Enum(),
+			Scale:     proto.Int32(6),
+			Precision: proto.Int32(20),
+		},
+		BufferLength: proto.Int32(120),
+		ValueCount:   proto.Int32(5),
+	}
+
+	vec := data.NewValueVec(buffer, meta)
+	assert.Nil(t, vec)
+
+	vec = data.NewDecimalVector(buffer, meta, data.Decimal38DenseTraits)
+	assert.PanicsWithValue(t, "go-drill: currently only supports decimal sparse vectors, not dense", func() {
+		vec.Value(uint(0))
+	})
+
+	meta.MajorType.MinorType = common.MinorType_DECIMAL28DENSE.Enum()
+	vec = data.NewValueVec(buffer, meta)
+	assert.Nil(t, vec)
+
+	vec = data.NewDecimalVector(buffer, meta, data.Decimal28DenseTraits)
+	assert.PanicsWithValue(t, "go-drill: currently only supports decimal sparse vectors, not dense", func() {
+		vec.Value(uint(0))
+	})
+
+	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
+	bytemap := []byte{1, 1, 1, 1, 1}
+	vec = data.NewValueVec(append(bytemap, buffer...), meta)
+	assert.Nil(t, vec)
+
+	vec = data.NewNullableDecimalVector(append(bytemap, buffer...), meta, data.Decimal28DenseTraits)
+	assert.PanicsWithValue(t, "go-drill: currently only supports decimal sparse vectors, not dense", func() {
+		vec.Value(uint(0))
+	})
+
+	meta.MajorType.MinorType = common.MinorType_DECIMAL38DENSE.Enum()
+	vec = data.NewValueVec(buffer, meta)
+	assert.Nil(t, vec)
+
+	vec = data.NewNullableDecimalVector(append(bytemap, buffer...), meta, data.Decimal38DenseTraits)
+	assert.PanicsWithValue(t, "go-drill: currently only supports decimal sparse vectors, not dense", func() {
+		vec.Value(uint(0))
+	})
+}

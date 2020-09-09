@@ -14,6 +14,10 @@ type TimestampVector struct {
 	*Int64Vector
 }
 
+func (TimestampVector) Type() reflect.Type {
+	return reflect.TypeOf(time.Time{})
+}
+
 func NewTimestampVector(data []byte, meta *shared.SerializedField) *TimestampVector {
 	return &TimestampVector{
 		NewInt64Vector(data, meta),
@@ -49,6 +53,10 @@ type TimeVector struct {
 	*Int32Vector
 }
 
+func (TimeVector) Type() reflect.Type {
+	return reflect.TypeOf(time.Time{})
+}
+
 func (t *TimeVector) Get(index uint) time.Time {
 	ts := t.Int32Vector.Get(index)
 	h, m, s := time.Unix(int64(ts/1000), int64(ts%1000)).UTC().Clock()
@@ -67,17 +75,27 @@ type NullableTimestampVector struct {
 	*NullableInt64Vector
 }
 
-func (v *NullableTimestampVector) Get(index uint) time.Time {
+func (NullableTimestampVector) Type() reflect.Type {
+	return reflect.TypeOf(time.Time{})
+}
+
+func (v *NullableTimestampVector) Get(index uint) *time.Time {
 	ts := v.NullableInt64Vector.Get(index)
 	if ts == nil {
-		return time.Time{}
+		return nil
 	}
 
-	return time.Unix(*ts/1000, *ts%1000)
+	ret := time.Unix(*ts/1000, *ts%1000)
+	return &ret
 }
 
 func (v *NullableTimestampVector) Value(index uint) interface{} {
-	return v.Get(index)
+	val := v.Get(index)
+	if val != nil {
+		return *val
+	}
+
+	return val
 }
 
 func NewNullableTimestampVector(data []byte, meta *shared.SerializedField) *NullableTimestampVector {
@@ -90,8 +108,17 @@ type NullableDateVector struct {
 	*NullableTimestampVector
 }
 
-func (nv *NullableDateVector) Get(index uint) time.Time {
-	return nv.NullableTimestampVector.Get(index).UTC()
+func (NullableDateVector) Type() reflect.Type {
+	return reflect.TypeOf(time.Time{})
+}
+
+func (nv *NullableDateVector) Get(index uint) *time.Time {
+	ret := nv.NullableTimestampVector.Get(index)
+	if ret != nil {
+		*ret = ret.UTC()
+	}
+
+	return ret
 }
 
 func (nv *NullableDateVector) Value(index uint) interface{} {
@@ -106,17 +133,27 @@ type NullableTimeVector struct {
 	*NullableInt32Vector
 }
 
-func (v *NullableTimeVector) Get(index uint) time.Time {
+func (NullableTimeVector) Type() reflect.Type {
+	return reflect.TypeOf(time.Time{})
+}
+
+func (v *NullableTimeVector) Get(index uint) *time.Time {
 	ts := v.NullableInt32Vector.Get(index)
 	if ts == nil {
-		return time.Time{}
+		return nil
 	}
 
-	return time.Unix(int64(*ts/1000), int64(*ts%1000)).UTC()
+	ret := time.Unix(int64(*ts/1000), int64(*ts%1000)).UTC()
+	return &ret
 }
 
 func (v *NullableTimeVector) Value(index uint) interface{} {
-	return v.Get(index)
+	val := v.Get(index)
+	if val != nil {
+		return *val
+	}
+
+	return val
 }
 
 func NewNullableTimeVector(data []byte, meta *shared.SerializedField) *NullableTimeVector {

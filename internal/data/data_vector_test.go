@@ -281,8 +281,8 @@ func TestDateVector(t *testing.T) {
 
 	bytemap = []byte{1}
 	vec = data.NewValueVec(append(bytemap, bindata...), meta)
-	assert.Equal(t, &date, vec.Value(0))
-	assert.Exactly(t, time.UTC, vec.Value(0).(*time.Time).Location())
+	assert.Equal(t, date, vec.Value(0))
+	assert.Exactly(t, time.UTC, vec.Value(0).(time.Time).Location())
 }
 
 func TestTimeVector(t *testing.T) {
@@ -311,7 +311,7 @@ func TestTimeVector(t *testing.T) {
 
 	bytemap = []byte{1}
 	vec = data.NewValueVec(append(bytemap, bindata...), meta)
-	assert.Equal(t, &exptime, vec.Value(0))
+	assert.Equal(t, exptime, vec.Value(0))
 }
 
 func TestIntervalYearVector(t *testing.T) {

@@ -118,7 +118,12 @@ func (nv *NullableDateVector) Get(index uint) *time.Time {
 }
 
 func (nv *NullableDateVector) Value(index uint) interface{} {
-	return nv.Get(index)
+	ret := nv.Get(index)
+	if ret != nil {
+		return *ret
+	}
+
+	return nil
 }
 
 func NewNullableDateVector(data []byte, meta *shared.SerializedField) *NullableDateVector {
@@ -139,7 +144,8 @@ func (v *NullableTimeVector) Get(index uint) *time.Time {
 		return nil
 	}
 
-	ret := time.Unix(int64(*ts/1000), int64(*ts%1000)).UTC()
+	h, m, s := time.Unix(int64(*ts/1000), int64(*ts%1000)).UTC().Clock()
+	ret := time.Date(0, 1, 1, h, m, s, 0, time.UTC)
 	return &ret
 }
 

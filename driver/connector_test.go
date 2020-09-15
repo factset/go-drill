@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/zeroshade/go-drill"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 )
 
 type mockDrillClient struct {
@@ -31,7 +30,7 @@ func (m *mockDrillClient) ExecuteStmt(p drill.PreparedHandle) (drill.DataHandler
 	args := m.Called(p)
 	return args.Get(0).(drill.DataHandler), args.Error(1)
 }
-func (m *mockDrillClient) SubmitQuery(t shared.QueryType, query string) (drill.DataHandler, error) {
+func (m *mockDrillClient) SubmitQuery(t drill.QueryType, query string) (drill.DataHandler, error) {
 	args := m.Called(t, query)
 	return args.Get(0).(drill.DataHandler), args.Error(1)
 }

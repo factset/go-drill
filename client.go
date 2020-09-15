@@ -21,6 +21,14 @@ import (
 
 //go:generate go run ./internal/cmd/drillProto runall ../../../
 
+type QueryType shared.QueryType
+
+const (
+	TypeSQL      QueryType = QueryType(shared.QueryType_SQL)
+	TypeLogical            = QueryType(shared.QueryType_LOGICAL)
+	TypePhysical           = QueryType(shared.QueryType_PHYSICAL)
+)
+
 type qid struct {
 	part1 int64
 	part2 int64
@@ -47,7 +55,7 @@ type Conn interface {
 	ConnectWithZK(context.Context, ...string) error
 	GetEndpoint() Drillbit
 	Ping(context.Context) error
-	SubmitQuery(shared.QueryType, string) (DataHandler, error)
+	SubmitQuery(QueryType, string) (DataHandler, error)
 	PrepareQuery(string) (PreparedHandle, error)
 	ExecuteStmt(PreparedHandle) (DataHandler, error)
 	NewConnection(context.Context) (Conn, error)
@@ -443,10 +451,11 @@ func (d *Client) PrepareQuery(plan string) (PreparedHandle, error) {
 //
 // If the query fails, this will not error but rather you'd retrieve that failure from
 // the result handle itself.
-func (d *Client) SubmitQuery(t shared.QueryType, plan string) (DataHandler, error) {
+func (d *Client) SubmitQuery(t QueryType, plan string) (DataHandler, error) {
+	qt := shared.QueryType(t)
 	query := &user.RunQuery{
 		ResultsMode: user.QueryResultsMode_STREAM_FULL.Enum(),
-		Type:        &t,
+		Type:        &qt,
 		Plan:        &plan,
 	}
 

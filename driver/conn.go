@@ -8,7 +8,6 @@ import (
 	"io"
 
 	"github.com/zeroshade/go-drill"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 )
 
 var errNoPrepSupport = errors.New("drill does not support parameters in prepared statements")
@@ -68,7 +67,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 		return nil, errNoPrepSupport
 	}
 
-	handle, err := c.Conn.SubmitQuery(shared.QueryType_SQL, query)
+	handle, err := c.Conn.SubmitQuery(drill.TypeSQL, query)
 	if err != nil {
 		return nil, driver.ErrBadConn
 	}
@@ -96,7 +95,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		return nil, errNoPrepSupport
 	}
 
-	handle, err := c.Conn.SubmitQuery(shared.QueryType_SQL, query)
+	handle, err := c.Conn.SubmitQuery(drill.TypeSQL, query)
 	if err != nil {
 		return nil, driver.ErrBadConn
 	}

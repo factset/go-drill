@@ -91,7 +91,7 @@ func TestConnQueryContextErr(t *testing.T) {
 	m.Test(t)
 	defer m.AssertExpectations(t)
 
-	m.On("SubmitQuery", shared.QueryType_SQL, "foobar").Return((*drill.ResultHandle)(nil), assert.AnError)
+	m.On("SubmitQuery", drill.TypeSQL, "foobar").Return((*drill.ResultHandle)(nil), assert.AnError)
 
 	c := &conn{m}
 	rows, err := c.QueryContext(context.Background(), "foobar", []driver.NamedValue{})
@@ -104,7 +104,7 @@ func TestConnExecContextErr(t *testing.T) {
 	m.Test(t)
 	defer m.AssertExpectations(t)
 
-	m.On("SubmitQuery", shared.QueryType_SQL, "foobar").Return((*drill.ResultHandle)(nil), assert.AnError)
+	m.On("SubmitQuery", drill.TypeSQL, "foobar").Return((*drill.ResultHandle)(nil), assert.AnError)
 
 	c := &conn{m}
 	rows, err := c.ExecContext(context.Background(), "foobar", []driver.NamedValue{})
@@ -136,7 +136,7 @@ func TestConnQueryContextCtxTimeout(t *testing.T) {
 	mr.Test(t)
 	defer mr.AssertExpectations(t)
 
-	m.On("SubmitQuery", shared.QueryType_SQL, "foobar").Return(mr, nil)
+	m.On("SubmitQuery", drill.TypeSQL, "foobar").Return(mr, nil)
 
 	waiter := make(chan time.Time)
 	mr.On("Cancel").Run(func(mock.Arguments) {
@@ -162,7 +162,7 @@ func TestConnExecContextCtxTimeout(t *testing.T) {
 	mr.Test(t)
 	defer mr.AssertExpectations(t)
 
-	m.On("SubmitQuery", shared.QueryType_SQL, "foobar").Return(mr, nil)
+	m.On("SubmitQuery", drill.TypeSQL, "foobar").Return(mr, nil)
 
 	waiter := make(chan time.Time)
 	mr.On("Cancel").Run(func(mock.Arguments) {
@@ -191,7 +191,7 @@ func TestConnQueryContext(t *testing.T) {
 	mr.Test(t)
 	defer mr.AssertExpectations(t)
 
-	m.On("SubmitQuery", shared.QueryType_SQL, "foobar").Return(mr, nil)
+	m.On("SubmitQuery", drill.TypeSQL, "foobar").Return(mr, nil)
 	mr.On("Next").After(100*time.Millisecond).Return(nil, (*drill.RecordBatch)(nil))
 
 	c := &conn{m}
@@ -210,7 +210,7 @@ func TestConnExecContext(t *testing.T) {
 	mr.Test(t)
 	defer mr.AssertExpectations(t)
 
-	m.On("SubmitQuery", shared.QueryType_SQL, "foobar").Return(mr, nil)
+	m.On("SubmitQuery", drill.TypeSQL, "foobar").Return(mr, nil)
 
 	rb := &drill.RecordBatch{
 		Def: &shared.RecordBatchDef{
@@ -238,7 +238,7 @@ func TestConnExecContextWithErr(t *testing.T) {
 	mr.Test(t)
 	defer mr.AssertExpectations(t)
 
-	m.On("SubmitQuery", shared.QueryType_SQL, "foobar").Return(mr, nil)
+	m.On("SubmitQuery", drill.TypeSQL, "foobar").Return(mr, nil)
 
 	rb := &drill.RecordBatch{
 		Def: &shared.RecordBatchDef{

@@ -424,7 +424,7 @@ func TestClientSubmitQuery(t *testing.T) {
 		}
 	}()
 
-	rh, err := cl.SubmitQuery(shared.QueryType_SQL, "foobar")
+	rh, err := cl.SubmitQuery(TypeSQL, "foobar")
 	assert.NoError(t, err)
 	assert.Same(t, cl, rh.(*ResultHandle).client)
 	assert.EqualValues(t, 1, cl.coordID)
@@ -447,7 +447,7 @@ func TestClientReqNilResp(t *testing.T) {
 		name string
 		call func(*Client) (interface{}, error)
 	}{
-		{"submit query", func(cl *Client) (interface{}, error) { return cl.SubmitQuery(shared.QueryType_SQL, "foobar") }},
+		{"submit query", func(cl *Client) (interface{}, error) { return cl.SubmitQuery(TypeSQL, "foobar") }},
 		{"prepare query", func(cl *Client) (interface{}, error) { return cl.PrepareQuery("foobar") }},
 		{"execute stmt", func(cl *Client) (interface{}, error) { return cl.ExecuteStmt(&user.PreparedStatement{}) }},
 	}
@@ -478,7 +478,7 @@ func TestClientReqClosedChannel(t *testing.T) {
 		name string
 		call func(*Client) (interface{}, error)
 	}{
-		{"submit query", func(cl *Client) (interface{}, error) { return cl.SubmitQuery(shared.QueryType_SQL, "foobar") }},
+		{"submit query", func(cl *Client) (interface{}, error) { return cl.SubmitQuery(TypeSQL, "foobar") }},
 		{"prepare query", func(cl *Client) (interface{}, error) { return cl.PrepareQuery("foobar") }},
 		{"execute stmt", func(cl *Client) (interface{}, error) { return cl.ExecuteStmt(&user.PreparedStatement{}) }},
 	}
@@ -509,7 +509,7 @@ func TestClientReqFailUnmarshal(t *testing.T) {
 		name string
 		call func(*Client) (interface{}, error)
 	}{
-		{"submit query", func(cl *Client) (interface{}, error) { return cl.SubmitQuery(shared.QueryType_SQL, "foobar") }},
+		{"submit query", func(cl *Client) (interface{}, error) { return cl.SubmitQuery(TypeSQL, "foobar") }},
 		{"prepare query", func(cl *Client) (interface{}, error) { return cl.PrepareQuery("foobar") }},
 		{"execute stmt", func(cl *Client) (interface{}, error) { return cl.ExecuteStmt(&user.PreparedStatement{}) }},
 	}

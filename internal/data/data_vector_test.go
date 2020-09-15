@@ -204,7 +204,7 @@ func TestTimestampVector(t *testing.T) {
 	vec := dv.(*data.TimestampVector)
 
 	assert.Equal(t, N, vec.Len())
-	assert.Exactly(t, reflect.TypeOf(int64(0)), vec.Type())
+	assert.Exactly(t, reflect.TypeOf(time.Time{}), vec.Type())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -237,7 +237,7 @@ func TestNullableTimestampVector(t *testing.T) {
 	vec := dv.(*data.NullableTimestampVector)
 
 	assert.Equal(t, N, vec.Len())
-	assert.Exactly(t, reflect.TypeOf(int64(0)), vec.Type())
+	assert.Exactly(t, reflect.TypeOf(time.Time{}), vec.Type())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -247,10 +247,10 @@ func TestNullableTimestampVector(t *testing.T) {
 		stamp := time.Unix(val/1000, val%1000)
 
 		if idx%2 == 1 {
-			assert.True(t, vec.Get(uint(idx)).IsZero())
-			assert.True(t, vec.Value(uint(idx)).(time.Time).IsZero())
+			assert.Nil(t, vec.Get(uint(idx)))
+			assert.Nil(t, vec.Value(uint(idx)))
 		} else {
-			assert.Exactly(t, stamp, vec.Get(uint(idx)))
+			assert.Exactly(t, &stamp, vec.Get(uint(idx)))
 			assert.Exactly(t, stamp, vec.Value(uint(idx)))
 		}
 	}

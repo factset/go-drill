@@ -108,10 +108,6 @@ type NullableDateVector struct {
 	*NullableTimestampVector
 }
 
-func (NullableDateVector) Type() reflect.Type {
-	return reflect.TypeOf(time.Time{})
-}
-
 func (nv *NullableDateVector) Get(index uint) *time.Time {
 	ret := nv.NullableTimestampVector.Get(index)
 	if ret != nil {

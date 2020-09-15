@@ -39,10 +39,21 @@ func (m *mockDrillClient) PrepareQuery(query string) (drill.PreparedHandle, erro
 }
 
 func TestParseConnectStrZK(t *testing.T) {
-	c, err := parseConnectStr("zk=node1,node2,node3")
-	assert.NoError(t, err)
+	tests := []struct {
+		name     string
+		testStr  string
+		expected []string
+	}{
+		{"simple", "zk=node1,node2,node3", []string{"node1", "node2", "node3"}},
+	}
 
-	assert.Equal(t, []string{"node1", "node2", "node3"}, c.(*connector).base.(*drill.Client).ZkNodes)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := parseConnectStr(tt.testStr)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, c.(*connector).base.(*drill.Client).ZkNodes)
+		})
+	}
 }
 
 func TestParseConnectStr(t *testing.T) {
@@ -63,6 +74,8 @@ func TestParseConnectStr(t *testing.T) {
 		{"cluster", "cluster=supercluster", drill.Options{ClusterName: "supercluster"}},
 		{"heartbeat", "heartbeat=5", drill.Options{HeartbeatFreq: durtest}},
 		{"multiple opts", "auth=kerberos;user=foobar;encrypt=true", drill.Options{Auth: "kerberos", User: "foobar", SaslEncrypt: true}},
+		{"zkpath", "zk=node1,node2,node3/drillbits", drill.Options{ZKPath: "/drillbits"}},
+		{"user passwd", "user=driller;pass=12345", drill.Options{User: "driller", Passwd: "12345"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

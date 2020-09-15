@@ -277,7 +277,12 @@ func TestDateVector(t *testing.T) {
 	bytemap := []byte{0}
 	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
 	vec = data.NewValueVec(append(bytemap, bindata...), meta)
-	assert.Zero(t, vec.Value(0))
+	assert.Nil(t, vec.Value(0))
+
+	bytemap = []byte{1}
+	vec = data.NewValueVec(append(bytemap, bindata...), meta)
+	assert.Equal(t, &date, vec.Value(0))
+	assert.Exactly(t, time.UTC, vec.Value(0).(*time.Time).Location())
 }
 
 func TestTimeVector(t *testing.T) {
@@ -294,13 +299,19 @@ func TestTimeVector(t *testing.T) {
 	binary.LittleEndian.PutUint32(bindata, 44614000)
 
 	vec := data.NewValueVec(bindata, meta)
+	assert.Exactly(t, reflect.TypeOf(time.Time{}), vec.Type())
 	exptime, _ := time.ParseInLocation("15:04:05 MST", "12:23:34 UTC", time.UTC)
 	assert.Equal(t, exptime, vec.Value(0))
 
 	bytemap := []byte{0}
 	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
 	vec = data.NewValueVec(append(bytemap, bindata...), meta)
-	assert.Zero(t, vec.Value(0))
+	assert.Exactly(t, reflect.TypeOf(time.Time{}), vec.Type())
+	assert.Nil(t, vec.Value(0))
+
+	bytemap = []byte{1}
+	vec = data.NewValueVec(append(bytemap, bindata...), meta)
+	assert.Equal(t, &exptime, vec.Value(0))
 }
 
 func TestIntervalYearVector(t *testing.T) {

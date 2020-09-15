@@ -29,8 +29,8 @@ type zkHandler struct {
 //
 // The cluster passed in here would be the Drill cluster name which is used to form the path
 // to the drill meta data information.
-func newZKHandler(cluster string, nodes ...string) (*zkHandler, error) {
-	hdlr := &zkHandler{Connecting: true, Nodes: zk.FormatServers(nodes), Path: "/drill/" + cluster}
+func newZKHandler(path string, nodes ...string) (*zkHandler, error) {
+	hdlr := &zkHandler{Connecting: true, Nodes: zk.FormatServers(nodes), Path: path}
 	var err error
 	hdlr.conn, _, err = zk.Connect(hdlr.Nodes, 30*time.Second, zk.WithLogger(&log.Logger), zk.WithEventCallback(func(ev zk.Event) {
 		switch ev.Type {

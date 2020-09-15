@@ -204,7 +204,7 @@ func TestTimestampVector(t *testing.T) {
 	vec := dv.(*data.TimestampVector)
 
 	assert.Equal(t, N, vec.Len())
-	assert.Exactly(t, reflect.TypeOf(int64(0)), vec.Type())
+	assert.Exactly(t, reflect.TypeOf(time.Time{}), vec.Type())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -237,7 +237,7 @@ func TestNullableTimestampVector(t *testing.T) {
 	vec := dv.(*data.NullableTimestampVector)
 
 	assert.Equal(t, N, vec.Len())
-	assert.Exactly(t, reflect.TypeOf(int64(0)), vec.Type())
+	assert.Exactly(t, reflect.TypeOf(time.Time{}), vec.Type())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -247,10 +247,10 @@ func TestNullableTimestampVector(t *testing.T) {
 		stamp := time.Unix(val/1000, val%1000)
 
 		if idx%2 == 1 {
-			assert.True(t, vec.Get(uint(idx)).IsZero())
-			assert.True(t, vec.Value(uint(idx)).(time.Time).IsZero())
+			assert.Nil(t, vec.Get(uint(idx)))
+			assert.Nil(t, vec.Value(uint(idx)))
 		} else {
-			assert.Exactly(t, stamp, vec.Get(uint(idx)))
+			assert.Exactly(t, &stamp, vec.Get(uint(idx)))
 			assert.Exactly(t, stamp, vec.Value(uint(idx)))
 		}
 	}
@@ -277,7 +277,12 @@ func TestDateVector(t *testing.T) {
 	bytemap := []byte{0}
 	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
 	vec = data.NewValueVec(append(bytemap, bindata...), meta)
-	assert.Zero(t, vec.Value(0))
+	assert.Nil(t, vec.Value(0))
+
+	bytemap = []byte{1}
+	vec = data.NewValueVec(append(bytemap, bindata...), meta)
+	assert.Equal(t, date, vec.Value(0))
+	assert.Exactly(t, time.UTC, vec.Value(0).(time.Time).Location())
 }
 
 func TestTimeVector(t *testing.T) {
@@ -294,13 +299,19 @@ func TestTimeVector(t *testing.T) {
 	binary.LittleEndian.PutUint32(bindata, 44614000)
 
 	vec := data.NewValueVec(bindata, meta)
+	assert.Exactly(t, reflect.TypeOf(time.Time{}), vec.Type())
 	exptime, _ := time.ParseInLocation("15:04:05 MST", "12:23:34 UTC", time.UTC)
 	assert.Equal(t, exptime, vec.Value(0))
 
 	bytemap := []byte{0}
 	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
 	vec = data.NewValueVec(append(bytemap, bindata...), meta)
-	assert.Zero(t, vec.Value(0))
+	assert.Exactly(t, reflect.TypeOf(time.Time{}), vec.Type())
+	assert.Nil(t, vec.Value(0))
+
+	bytemap = []byte{1}
+	vec = data.NewValueVec(append(bytemap, bindata...), meta)
+	assert.Equal(t, exptime, vec.Value(0))
 }
 
 func TestIntervalYearVector(t *testing.T) {

@@ -181,7 +181,7 @@ func TestClientConnectErr(t *testing.T) {
 		return &zkHandler{conn: mzk, Path: "/drill/drill"}, nil
 	}
 
-	cl := NewClient(Options{ClusterName: "drill"}, "a", "b", "c")
+	cl := NewClient(Options{ZKPath: "drill"}, "a", "b", "c")
 	assert.Error(t, cl.Connect(context.Background()))
 }
 
@@ -214,7 +214,7 @@ func TestClientConnect(t *testing.T) {
 	mzk.On("Close").Once()
 
 	createZKHandler = func(clst string, nodes ...string) (*zkHandler, error) {
-		assert.Equal(t, "drill", clst)
+		assert.Equal(t, "/drill/drill", clst)
 		assert.ElementsMatch(t, []string{"a", "b", "c"}, nodes)
 		return &zkHandler{conn: mzk, Path: "/drill/drill"}, nil
 	}
@@ -274,6 +274,7 @@ func TestNewConnection(t *testing.T) {
 	cl := NewClient(opts, "a", "b", "c")
 	nc, err := cl.NewConnection(context.Background())
 
+	cl.Opts.ZKPath = "/drill/"
 	assert.Error(t, err)
 	assert.Equal(t, cl.Opts, nc.(*Client).Opts)
 	assert.EqualValues(t, cl.drillBits, nc.(*Client).drillBits)

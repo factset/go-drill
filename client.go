@@ -123,6 +123,10 @@ func (d *Client) NewConnection(ctx context.Context) (Conn, error) {
 
 	newClient.nextBit = d.nextBit
 
+	if newClient.Opts.ZKPath == "" {
+		newClient.Opts.ZKPath = "/drill/" + newClient.Opts.ClusterName
+	}
+
 	zook, err := createZKHandler(newClient.Opts.ClusterName, newClient.ZkNodes...)
 	if err != nil {
 		return nil, err
@@ -337,7 +341,11 @@ func (d *Client) Connect(ctx context.Context) error {
 		return errors.New("no zookeeper nodes specified")
 	}
 
-	zoo, err := createZKHandler(d.Opts.ClusterName, d.ZkNodes...)
+	if d.Opts.ZKPath == "" {
+		d.Opts.ZKPath = "/drill/" + d.Opts.ClusterName
+	}
+
+	zoo, err := createZKHandler(d.Opts.ZKPath, d.ZkNodes...)
 	if err != nil {
 		return err
 	}

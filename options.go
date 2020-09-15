@@ -27,12 +27,16 @@ type Options struct {
 	// the Drill clusters name which is used by ZooKeeper to store the endpoint
 	// information
 	ClusterName string
+	// use this instead of ClusterName to fully specify the Zookeeper path instead
+	// of using the /drill prefix
+	ZKPath string
 	// whether or not the server should support complex types such as List
 	SupportComplexTypes bool
 	// what Application Name to use for connecting to the server
 	ApplicationName string
 	// the username to authenticate as
-	User   string
+	User string
+	// Password to use for PLAIN auth
 	Passwd string
 	// the heartbeatfrequency to use, if nil then will use the default (15 seconds)
 	// set to 0 to disable it.

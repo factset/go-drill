@@ -31,6 +31,8 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 	opts := drill.Options{}
 
 	var zknodes []string
+	var host string
+	var port int = 31010 // default port is 31010 if connecting directly
 	args := strings.Split(connectStr, ";")
 	for _, kv := range args {
 		parsed := strings.Split(kv, "=")
@@ -67,6 +69,14 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 			opts.Passwd = parsed[1]
 		case "cluster":
 			opts.ClusterName = parsed[1]
+		case "host":
+			host = parsed[1]
+		case "port":
+			var err error
+			port, err = strconv.Atoi(parsed[1])
+			if err != nil {
+				return nil, fmt.Errorf("drill: invalid port format '%s': %w", parsed[1], err)
+			}
 		case "heartbeat":
 			hbsec, err := strconv.Atoi(parsed[1])
 			if err != nil {
@@ -79,5 +89,8 @@ func parseConnectStr(connectStr string) (driver.Connector, error) {
 		}
 	}
 
+	if len(zknodes) == 0 && host != "" {
+		return &connector{base: drill.NewDirectClient(opts, host, int32(port))}, nil
+	}
 	return &connector{base: drill.NewClient(opts, zknodes...)}, nil
 }

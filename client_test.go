@@ -42,6 +42,26 @@ func TestNewClient(t *testing.T) {
 	assert.GreaterOrEqual(t, cl.coordID, int32(0))
 }
 
+func TestNewDirectClient(t *testing.T) {
+	heartbeat := 5 * time.Second
+	opts := Options{
+		Schema:        "foobar",
+		SaslEncrypt:   true,
+		HeartbeatFreq: &heartbeat,
+	}
+
+	cl := NewDirectClient(opts, "localhost", 1234)
+
+	assert.NotNil(t, cl.close)
+	assert.NotNil(t, cl.outbound)
+	assert.NotNil(t, cl.pingpong)
+	assert.IsType(t, rpcEncoder{}, cl.dataEncoder)
+	assert.Equal(t, opts, cl.Opts)
+	assert.GreaterOrEqual(t, cl.coordID, int32(0))
+	assert.Equal(t, "localhost", cl.endpoint.GetAddress())
+	assert.Equal(t, int32(1234), cl.endpoint.GetUserPort())
+}
+
 type TCPServer struct {
 	port   int32
 	server net.Listener
@@ -146,6 +166,17 @@ func TestConnectEndpointFailHandshake(t *testing.T) {
 func TestClientConnectNoZK(t *testing.T) {
 	cl := Client{}
 	assert.EqualError(t, cl.Connect(context.Background()), "no zookeeper nodes specified")
+}
+
+func TestDirectClientConnect(t *testing.T) {
+	server := TCPServer{handler: mockHandshake(nil)}
+
+	defer server.Close()
+	server.Run()
+
+	cl := NewDirectClient(Options{}, "", server.port)
+	assert.NoError(t, cl.Connect(context.Background()))
+	cl.Close()
 }
 
 func TestClientConnectFailZK(t *testing.T) {
@@ -345,6 +376,20 @@ func TestClientNewConnectionNextBit(t *testing.T) {
 	assert.Equal(t, 0, cl.nextBit)
 	assert.Equal(t, 0, nc.(*Client).nextBit)
 	assert.Equal(t, cl.drillBits, nc.(*Client).drillBits)
+}
+
+func TestDirectClientNewConnection(t *testing.T) {
+	server := TCPServer{handler: mockHandshake(nil)}
+
+	defer server.Close()
+	server.Run()
+
+	cl := NewDirectClient(Options{}, "", server.port)
+	nc, err := cl.NewConnection(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, nc)
+	assert.Equal(t, server.port, nc.GetEndpoint().GetUserPort())
+	assert.Equal(t, "", nc.GetEndpoint().GetAddress())
 }
 
 func TestClientSubmitQuery(t *testing.T) {

@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ func (m *mockDrillClient) NewConnection(ctx context.Context) (drill.Conn, error)
 	return args.Get(0).(drill.Conn), args.Error(1)
 }
 
+func (m *mockDrillClient) GetEndpoint() drill.Drillbit                           { return nil }
 func (m *mockDrillClient) Connect(context.Context) error                         { return nil }
 func (m *mockDrillClient) ConnectEndpoint(context.Context, drill.Drillbit) error { return nil }
 func (m *mockDrillClient) ConnectWithZK(context.Context, ...string) error        { return nil }
@@ -38,20 +40,40 @@ func (m *mockDrillClient) PrepareQuery(query string) (drill.PreparedHandle, erro
 	return args.Get(0).(drill.PreparedHandle), args.Error(1)
 }
 
-func TestParseConnectStrZK(t *testing.T) {
+func TestParseConnectStrZKDirect(t *testing.T) {
 	tests := []struct {
 		name     string
 		testStr  string
 		expected []string
+		host     string
+		port     int32
+		err      error
 	}{
-		{"simple", "zk=node1,node2,node3", []string{"node1", "node2", "node3"}},
+		{"simple zk", "zk=node1,node2,node3", []string{"node1", "node2", "node3"}, "", 0, nil},
+		{"simple direct", "host=localhost;port=8080", nil, "localhost", 8080, nil},
+		{"invalid port", "host=localhost;port=foobar", nil, "", 0, errors.New("invalid port")},
+		{"default port", "host=localhost", nil, "localhost", 31010, nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c, err := parseConnectStr(tt.testStr)
+			if tt.err != nil {
+				assert.Error(t, err)
+				return
+			}
+
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, c.(*connector).base.(*drill.Client).ZkNodes)
+
+			endpoint := c.(*connector).base.(*drill.Client).GetEndpoint()
+			if len(tt.expected) > 0 {
+				assert.Nil(t, endpoint)
+				return
+			}
+
+			assert.Equal(t, tt.host, endpoint.GetAddress())
+			assert.Equal(t, tt.port, endpoint.GetUserPort())
 		})
 	}
 }

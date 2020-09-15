@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/zeroshade/go-drill/internal/log"
+	"github.com/zeroshade/go-drill/internal/rpc/proto/exec"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
@@ -44,6 +45,7 @@ type Conn interface {
 	ConnectEndpoint(context.Context, Drillbit) error
 	Connect(context.Context) error
 	ConnectWithZK(context.Context, ...string) error
+	GetEndpoint() Drillbit
 	Ping(context.Context) error
 	SubmitQuery(shared.QueryType, string) (DataHandler, error)
 	PrepareQuery(string) (PreparedHandle, error)
@@ -96,7 +98,25 @@ func NewClient(opts Options, zk ...string) *Client {
 	}
 }
 
+// NewDirectClient initializes a Drill Client which connects to an endpoint directly
+// rather than relying on ZooKeeper for finding drill bits.
+func NewDirectClient(opts Options, host string, port int32) *Client {
+	cl := NewClient(opts)
+	cl.endpoint = &exec.DrillbitEndpoint{
+		Address: proto.String(host), UserPort: proto.Int32(port),
+	}
+	return cl
+}
+
 var createZKHandler = newZKHandler
+
+// GetEndpoint returns the currently configured endpoint that the client either
+// is connected to or will connect to if Connect is called (in the case of a Direct
+// connection client). Returns nil for a client using Zookeeper that hasn't connected
+// yet, as the endpoint is only determined when connecting in that case.
+func (d *Client) GetEndpoint() Drillbit {
+	return d.endpoint
+}
 
 // NewConnection will use the stored zookeeper quorum nodes and drill bit information
 // to find the next drill bit to connect to in order to spread out the load.
@@ -106,6 +126,9 @@ var createZKHandler = newZKHandler
 // to connect to.
 func (d *Client) NewConnection(ctx context.Context) (Conn, error) {
 	newClient := NewClient(d.Opts, d.ZkNodes...)
+	if len(newClient.ZkNodes) == 0 && d.endpoint != nil {
+		newClient.endpoint = d.endpoint
+	}
 
 	if len(d.drillBits) == 0 {
 		err := newClient.Connect(ctx)
@@ -338,6 +361,10 @@ func (d *Client) ConnectEndpoint(ctx context.Context, e Drillbit) error {
 // and will not be stored in the client.
 func (d *Client) Connect(ctx context.Context) error {
 	if len(d.ZkNodes) == 0 {
+		if d.endpoint != nil {
+			return d.ConnectEndpoint(ctx, d.endpoint)
+		}
+
 		return errors.New("no zookeeper nodes specified")
 	}
 

@@ -10,6 +10,7 @@ import (
 // Int64 vector
 
 type Int64Vector struct {
+	vector
 	values []int64
 	meta   *shared.SerializedField
 }
@@ -36,6 +37,7 @@ func (v *Int64Vector) Value(index uint) interface{} {
 
 func NewInt64Vector(data []byte, meta *shared.SerializedField) *Int64Vector {
 	return &Int64Vector{
+		vector: vector{rawData: data},
 		values: Int64Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -44,11 +46,7 @@ func NewInt64Vector(data []byte, meta *shared.SerializedField) *Int64Vector {
 type NullableInt64Vector struct {
 	*Int64Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableInt64Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableInt64Vector) Get(index uint) *int64 {
@@ -74,13 +72,14 @@ func NewNullableInt64Vector(data []byte, meta *shared.SerializedField) *Nullable
 
 	return &NullableInt64Vector{
 		NewInt64Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 
 // Int32 vector
 
 type Int32Vector struct {
+	vector
 	values []int32
 	meta   *shared.SerializedField
 }
@@ -107,6 +106,7 @@ func (v *Int32Vector) Value(index uint) interface{} {
 
 func NewInt32Vector(data []byte, meta *shared.SerializedField) *Int32Vector {
 	return &Int32Vector{
+		vector: vector{rawData: data},
 		values: Int32Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -115,11 +115,7 @@ func NewInt32Vector(data []byte, meta *shared.SerializedField) *Int32Vector {
 type NullableInt32Vector struct {
 	*Int32Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableInt32Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableInt32Vector) Get(index uint) *int32 {
@@ -145,13 +141,14 @@ func NewNullableInt32Vector(data []byte, meta *shared.SerializedField) *Nullable
 
 	return &NullableInt32Vector{
 		NewInt32Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 
 // Float64 vector
 
 type Float64Vector struct {
+	vector
 	values []float64
 	meta   *shared.SerializedField
 }
@@ -178,6 +175,7 @@ func (v *Float64Vector) Value(index uint) interface{} {
 
 func NewFloat64Vector(data []byte, meta *shared.SerializedField) *Float64Vector {
 	return &Float64Vector{
+		vector: vector{rawData: data},
 		values: Float64Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -186,11 +184,7 @@ func NewFloat64Vector(data []byte, meta *shared.SerializedField) *Float64Vector 
 type NullableFloat64Vector struct {
 	*Float64Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableFloat64Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableFloat64Vector) Get(index uint) *float64 {
@@ -216,13 +210,14 @@ func NewNullableFloat64Vector(data []byte, meta *shared.SerializedField) *Nullab
 
 	return &NullableFloat64Vector{
 		NewFloat64Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 
 // Uint64 vector
 
 type Uint64Vector struct {
+	vector
 	values []uint64
 	meta   *shared.SerializedField
 }
@@ -249,6 +244,7 @@ func (v *Uint64Vector) Value(index uint) interface{} {
 
 func NewUint64Vector(data []byte, meta *shared.SerializedField) *Uint64Vector {
 	return &Uint64Vector{
+		vector: vector{rawData: data},
 		values: Uint64Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -257,11 +253,7 @@ func NewUint64Vector(data []byte, meta *shared.SerializedField) *Uint64Vector {
 type NullableUint64Vector struct {
 	*Uint64Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableUint64Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableUint64Vector) Get(index uint) *uint64 {
@@ -287,13 +279,14 @@ func NewNullableUint64Vector(data []byte, meta *shared.SerializedField) *Nullabl
 
 	return &NullableUint64Vector{
 		NewUint64Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 
 // Uint32 vector
 
 type Uint32Vector struct {
+	vector
 	values []uint32
 	meta   *shared.SerializedField
 }
@@ -320,6 +313,7 @@ func (v *Uint32Vector) Value(index uint) interface{} {
 
 func NewUint32Vector(data []byte, meta *shared.SerializedField) *Uint32Vector {
 	return &Uint32Vector{
+		vector: vector{rawData: data},
 		values: Uint32Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -328,11 +322,7 @@ func NewUint32Vector(data []byte, meta *shared.SerializedField) *Uint32Vector {
 type NullableUint32Vector struct {
 	*Uint32Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableUint32Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableUint32Vector) Get(index uint) *uint32 {
@@ -358,13 +348,14 @@ func NewNullableUint32Vector(data []byte, meta *shared.SerializedField) *Nullabl
 
 	return &NullableUint32Vector{
 		NewUint32Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 
 // Float32 vector
 
 type Float32Vector struct {
+	vector
 	values []float32
 	meta   *shared.SerializedField
 }
@@ -391,6 +382,7 @@ func (v *Float32Vector) Value(index uint) interface{} {
 
 func NewFloat32Vector(data []byte, meta *shared.SerializedField) *Float32Vector {
 	return &Float32Vector{
+		vector: vector{rawData: data},
 		values: Float32Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -399,11 +391,7 @@ func NewFloat32Vector(data []byte, meta *shared.SerializedField) *Float32Vector 
 type NullableFloat32Vector struct {
 	*Float32Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableFloat32Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableFloat32Vector) Get(index uint) *float32 {
@@ -429,13 +417,14 @@ func NewNullableFloat32Vector(data []byte, meta *shared.SerializedField) *Nullab
 
 	return &NullableFloat32Vector{
 		NewFloat32Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 
 // Int16 vector
 
 type Int16Vector struct {
+	vector
 	values []int16
 	meta   *shared.SerializedField
 }
@@ -462,6 +451,7 @@ func (v *Int16Vector) Value(index uint) interface{} {
 
 func NewInt16Vector(data []byte, meta *shared.SerializedField) *Int16Vector {
 	return &Int16Vector{
+		vector: vector{rawData: data},
 		values: Int16Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -470,11 +460,7 @@ func NewInt16Vector(data []byte, meta *shared.SerializedField) *Int16Vector {
 type NullableInt16Vector struct {
 	*Int16Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableInt16Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableInt16Vector) Get(index uint) *int16 {
@@ -500,13 +486,14 @@ func NewNullableInt16Vector(data []byte, meta *shared.SerializedField) *Nullable
 
 	return &NullableInt16Vector{
 		NewInt16Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 
 // Uint16 vector
 
 type Uint16Vector struct {
+	vector
 	values []uint16
 	meta   *shared.SerializedField
 }
@@ -533,6 +520,7 @@ func (v *Uint16Vector) Value(index uint) interface{} {
 
 func NewUint16Vector(data []byte, meta *shared.SerializedField) *Uint16Vector {
 	return &Uint16Vector{
+		vector: vector{rawData: data},
 		values: Uint16Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -541,11 +529,7 @@ func NewUint16Vector(data []byte, meta *shared.SerializedField) *Uint16Vector {
 type NullableUint16Vector struct {
 	*Uint16Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableUint16Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableUint16Vector) Get(index uint) *uint16 {
@@ -571,13 +555,14 @@ func NewNullableUint16Vector(data []byte, meta *shared.SerializedField) *Nullabl
 
 	return &NullableUint16Vector{
 		NewUint16Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 
 // Int8 vector
 
 type Int8Vector struct {
+	vector
 	values []int8
 	meta   *shared.SerializedField
 }
@@ -604,6 +589,7 @@ func (v *Int8Vector) Value(index uint) interface{} {
 
 func NewInt8Vector(data []byte, meta *shared.SerializedField) *Int8Vector {
 	return &Int8Vector{
+		vector: vector{rawData: data},
 		values: Int8Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -612,11 +598,7 @@ func NewInt8Vector(data []byte, meta *shared.SerializedField) *Int8Vector {
 type NullableInt8Vector struct {
 	*Int8Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableInt8Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableInt8Vector) Get(index uint) *int8 {
@@ -642,13 +624,14 @@ func NewNullableInt8Vector(data []byte, meta *shared.SerializedField) *NullableI
 
 	return &NullableInt8Vector{
 		NewInt8Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 
 // Uint8 vector
 
 type Uint8Vector struct {
+	vector
 	values []uint8
 	meta   *shared.SerializedField
 }
@@ -675,6 +658,7 @@ func (v *Uint8Vector) Value(index uint) interface{} {
 
 func NewUint8Vector(data []byte, meta *shared.SerializedField) *Uint8Vector {
 	return &Uint8Vector{
+		vector: vector{rawData: data},
 		values: Uint8Traits.CastFromBytes(data),
 		meta:   meta,
 	}
@@ -683,11 +667,7 @@ func NewUint8Vector(data []byte, meta *shared.SerializedField) *Uint8Vector {
 type NullableUint8Vector struct {
 	*Uint8Vector
 
-	byteMap []byte
-}
-
-func (nv *NullableUint8Vector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableUint8Vector) Get(index uint) *uint8 {
@@ -713,6 +693,6 @@ func NewNullableUint8Vector(data []byte, meta *shared.SerializedField) *Nullable
 
 	return &NullableUint8Vector{
 		NewUint8Vector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }

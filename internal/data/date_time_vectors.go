@@ -166,6 +166,7 @@ type intervalBase interface {
 	Type() reflect.Type
 	TypeLen() (int64, bool)
 	Len() int
+	GetRawBytes() []byte
 	getval(index int) []byte
 }
 
@@ -184,6 +185,10 @@ func (fixedWidthVec) TypeLen() (int64, bool) {
 	return 0, false
 }
 
+func (v *fixedWidthVec) GetRawBytes() []byte {
+	return v.data
+}
+
 func (v *fixedWidthVec) Len() int {
 	return int(v.meta.GetValueCount())
 }
@@ -196,15 +201,16 @@ func (v *fixedWidthVec) getval(index int) []byte {
 type nullableIntervalBase interface {
 	intervalBase
 	IsNull(index uint) bool
+	GetNullBytemap() []byte
 }
 
 type nullableFixedWidthVec struct {
 	*fixedWidthVec
-	byteMap []byte
+	nullByteMap
 }
 
-func (nv *nullableFixedWidthVec) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+func (nv *nullableFixedWidthVec) GetNullBytemap() []byte {
+	return nv.byteMap
 }
 
 func (nv *nullableFixedWidthVec) getval(index int) []byte {
@@ -220,7 +226,7 @@ func newNullableFixedWidth(data []byte, meta *shared.SerializedField, valsz int)
 
 	return &nullableFixedWidthVec{
 		&fixedWidthVec{remaining, valsz, meta},
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 

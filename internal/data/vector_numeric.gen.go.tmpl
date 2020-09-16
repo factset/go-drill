@@ -10,6 +10,7 @@ import (
 // {{ .Name}} vector
 
 type {{.Name}}Vector struct {
+  vector
   values []{{.name}}
   meta   *shared.SerializedField
 }
@@ -36,6 +37,7 @@ func (v *{{.Name}}Vector) Value(index uint) interface{} {
 
 func New{{.Name}}Vector(data []byte, meta *shared.SerializedField) *{{.Name}}Vector {
   return &{{.Name}}Vector{
+    vector: vector{rawData: data},
     values: {{.Name}}Traits.CastFromBytes(data),
     meta: meta,
   }
@@ -44,12 +46,13 @@ func New{{.Name}}Vector(data []byte, meta *shared.SerializedField) *{{.Name}}Vec
 type Nullable{{.Name}}Vector struct {
   *{{.Name}}Vector
 
-  byteMap []byte
+  nullByteMap
+  {{/* byteMap []byte */}}
 }
 
-func (nv *Nullable{{.Name}}Vector) IsNull(index uint) bool {
+{{/* func (nv *Nullable{{.Name}}Vector) IsNull(index uint) bool {
   return nv.byteMap[index] == 0
-}
+} */}}
 
 func (nv *Nullable{{.Name}}Vector) Get(index uint) *{{.name}} {
   if nv.IsNull(index) { return nil }
@@ -72,7 +75,8 @@ func NewNullable{{.Name}}Vector(data []byte, meta *shared.SerializedField) *Null
 
   return &Nullable{{.Name}}Vector{
     New{{.Name}}Vector(remaining, meta),
-    byteMap,
+    nullByteMap{byteMap},
+    {{/* byteMap, */}}
   }
 }
 

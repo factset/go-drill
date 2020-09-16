@@ -8,7 +8,6 @@ import (
 	"log"
 
 	"github.com/zeroshade/go-drill"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
 )
 
 func Example_kerberos() {
@@ -20,7 +19,7 @@ func Example_kerberos() {
 	}
 	defer cl.Close()
 
-	dh, err := cl.SubmitQuery(shared.QueryType_SQL, "SELECT * FROM `nation.parquet`")
+	dh, err := cl.SubmitQuery(drill.TypeSQL, "SELECT * FROM `nation.parquet`")
 	if err != nil {
 		log.Fatal(err)
 	}

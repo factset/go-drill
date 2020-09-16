@@ -10,6 +10,9 @@ import (
 	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
 )
 
+type DataVector data.DataVector
+type NullableDataVector data.NullableDataVector
+
 // A DataHandler is an object that allows iterating through record batches as the data
 // comes in, or cancelling a running query.
 type DataHandler interface {
@@ -68,7 +71,7 @@ type PreparedHandle interface{}
 // but for now it was easier to just expose the protobuf definitions.
 type RecordBatch struct {
 	Def  *shared.RecordBatchDef
-	Vecs []data.DataVector
+	Vecs []DataVector
 }
 
 // Close the channel and remove the query handler from the client
@@ -180,7 +183,7 @@ func (r *ResultHandle) nextBatch() {
 		// more data!
 		qd := q.msg.(*shared.QueryData)
 		r.curBatch = &RecordBatch{
-			Vecs: make([]data.DataVector, 0, len(qd.GetDef().GetField())),
+			Vecs: make([]DataVector, 0, len(qd.GetDef().GetField())),
 			Def:  qd.GetDef(),
 		}
 

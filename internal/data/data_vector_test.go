@@ -327,6 +327,7 @@ func TestIntervalYearVector(t *testing.T) {
 	}
 
 	vec := data.NewValueVec(rawbin, meta)
+	assert.Same(t, &rawbin[0], &vec.GetRawBytes()[0])
 	assert.EqualValues(t, "-1-0", vec.Value(0))
 
 	bytemap := []byte{0}
@@ -358,6 +359,7 @@ func TestIntervalDayVector(t *testing.T) {
 	meta.MajorType.Mode = common.DataMode_OPTIONAL.Enum()
 	vec = data.NewValueVec(append(bytemap, bindata...), meta)
 	assert.Nil(t, vec.Value(0))
+	assert.Equal(t, bytemap, vec.(data.NullableDataVector).GetNullBytemap())
 }
 
 func TestIntervalFull(t *testing.T) {

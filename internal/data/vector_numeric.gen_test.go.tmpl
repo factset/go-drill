@@ -31,6 +31,8 @@ func Test{{.Name}}Vector(t *testing.T) {
     assert.Exactly(t, {{.name}}(i), vec.Get(uint(i)))
     assert.Exactly(t, {{.name}}(i), vec.Value(uint(i)))
   }
+
+  assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullable{{.Name}}Vector(t *testing.T) {
@@ -44,6 +46,9 @@ func TestNullable{{.Name}}Vector(t *testing.T) {
 
   vec := data.NewNullable{{.Name}}Vector(append(bytemap, b...), meta)
   assert.Equal(t, reflect.TypeOf({{.name}}({{.Default}})), vec.Type())
+
+  assert.EqualValues(t, b, vec.GetRawBytes())
+  assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
   l, ok := vec.TypeLen()
   assert.Zero(t, l)

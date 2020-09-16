@@ -20,14 +20,17 @@ type DataVector interface {
 	Value(index uint) interface{}
 	Type() reflect.Type
 	TypeLen() (int64, bool)
+	GetRawBytes() []byte
 }
 
 type NullableDataVector interface {
 	DataVector
 	IsNull(index uint) bool
+	GetNullBytemap() []byte
 }
 
 type BitVector struct {
+	vector
 	values []byte
 	meta   *shared.SerializedField
 }
@@ -55,6 +58,7 @@ func (b *BitVector) Value(index uint) interface{} {
 
 func NewBitVector(data []byte, meta *shared.SerializedField) *BitVector {
 	return &BitVector{
+		vector: vector{data},
 		values: data,
 		meta:   meta,
 	}
@@ -63,11 +67,7 @@ func NewBitVector(data []byte, meta *shared.SerializedField) *BitVector {
 type NullableBitVector struct {
 	*BitVector
 
-	byteMap []byte
-}
-
-func (nb *NullableBitVector) IsNull(index uint) bool {
-	return nb.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nb *NullableBitVector) Get(index uint) *bool {
@@ -92,11 +92,12 @@ func NewNullableBitVector(data []byte, meta *shared.SerializedField) *NullableBi
 
 	return &NullableBitVector{
 		NewBitVector(remaining, meta),
-		bytemap,
+		nullByteMap{bytemap},
 	}
 }
 
 type VarbinaryVector struct {
+	vector
 	offsets []uint32
 	data    []byte
 
@@ -126,6 +127,7 @@ func (v *VarbinaryVector) Value(index uint) interface{} {
 func NewVarbinaryVector(data []byte, meta *shared.SerializedField) *VarbinaryVector {
 	if data == nil {
 		return &VarbinaryVector{
+			vector:  vector{data},
 			offsets: []uint32{},
 			data:    []byte{},
 			meta:    meta,
@@ -149,6 +151,7 @@ func NewVarbinaryVector(data []byte, meta *shared.SerializedField) *VarbinaryVec
 	}
 
 	return &VarbinaryVector{
+		vector:  vector{data},
 		offsets: offsetList,
 		data:    remaining,
 		meta:    meta,
@@ -175,11 +178,7 @@ func NewVarcharVector(data []byte, meta *shared.SerializedField) *VarcharVector 
 type NullableVarcharVector struct {
 	*VarcharVector
 
-	byteMap []byte
-}
-
-func (nv *NullableVarcharVector) IsNull(index uint) bool {
-	return nv.byteMap[index] == 0
+	nullByteMap
 }
 
 func (nv *NullableVarcharVector) Get(index uint) *string {
@@ -206,7 +205,7 @@ func NewNullableVarcharVector(data []byte, meta *shared.SerializedField) *Nullab
 
 	return &NullableVarcharVector{
 		NewVarcharVector(remaining, meta),
-		byteMap,
+		nullByteMap{byteMap},
 	}
 }
 

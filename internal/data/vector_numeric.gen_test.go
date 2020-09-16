@@ -30,6 +30,8 @@ func TestInt64Vector(t *testing.T) {
 		assert.Exactly(t, int64(i), vec.Get(uint(i)))
 		assert.Exactly(t, int64(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableInt64Vector(t *testing.T) {
@@ -43,6 +45,9 @@ func TestNullableInt64Vector(t *testing.T) {
 
 	vec := data.NewNullableInt64Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(int64(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -83,6 +88,8 @@ func TestInt32Vector(t *testing.T) {
 		assert.Exactly(t, int32(i), vec.Get(uint(i)))
 		assert.Exactly(t, int32(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableInt32Vector(t *testing.T) {
@@ -96,6 +103,9 @@ func TestNullableInt32Vector(t *testing.T) {
 
 	vec := data.NewNullableInt32Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(int32(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -136,6 +146,8 @@ func TestFloat64Vector(t *testing.T) {
 		assert.Exactly(t, float64(i), vec.Get(uint(i)))
 		assert.Exactly(t, float64(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableFloat64Vector(t *testing.T) {
@@ -149,6 +161,9 @@ func TestNullableFloat64Vector(t *testing.T) {
 
 	vec := data.NewNullableFloat64Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(float64(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -189,6 +204,8 @@ func TestUint64Vector(t *testing.T) {
 		assert.Exactly(t, uint64(i), vec.Get(uint(i)))
 		assert.Exactly(t, uint64(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableUint64Vector(t *testing.T) {
@@ -202,6 +219,9 @@ func TestNullableUint64Vector(t *testing.T) {
 
 	vec := data.NewNullableUint64Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(uint64(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -242,6 +262,8 @@ func TestUint32Vector(t *testing.T) {
 		assert.Exactly(t, uint32(i), vec.Get(uint(i)))
 		assert.Exactly(t, uint32(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableUint32Vector(t *testing.T) {
@@ -255,6 +277,9 @@ func TestNullableUint32Vector(t *testing.T) {
 
 	vec := data.NewNullableUint32Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(uint32(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -295,6 +320,8 @@ func TestFloat32Vector(t *testing.T) {
 		assert.Exactly(t, float32(i), vec.Get(uint(i)))
 		assert.Exactly(t, float32(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableFloat32Vector(t *testing.T) {
@@ -308,6 +335,9 @@ func TestNullableFloat32Vector(t *testing.T) {
 
 	vec := data.NewNullableFloat32Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(float32(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -348,6 +378,8 @@ func TestInt16Vector(t *testing.T) {
 		assert.Exactly(t, int16(i), vec.Get(uint(i)))
 		assert.Exactly(t, int16(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableInt16Vector(t *testing.T) {
@@ -361,6 +393,9 @@ func TestNullableInt16Vector(t *testing.T) {
 
 	vec := data.NewNullableInt16Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(int16(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -401,6 +436,8 @@ func TestUint16Vector(t *testing.T) {
 		assert.Exactly(t, uint16(i), vec.Get(uint(i)))
 		assert.Exactly(t, uint16(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableUint16Vector(t *testing.T) {
@@ -414,6 +451,9 @@ func TestNullableUint16Vector(t *testing.T) {
 
 	vec := data.NewNullableUint16Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(uint16(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -454,6 +494,8 @@ func TestInt8Vector(t *testing.T) {
 		assert.Exactly(t, int8(i), vec.Get(uint(i)))
 		assert.Exactly(t, int8(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableInt8Vector(t *testing.T) {
@@ -467,6 +509,9 @@ func TestNullableInt8Vector(t *testing.T) {
 
 	vec := data.NewNullableInt8Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(int8(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)
@@ -507,6 +552,8 @@ func TestUint8Vector(t *testing.T) {
 		assert.Exactly(t, uint8(i), vec.Get(uint(i)))
 		assert.Exactly(t, uint8(i), vec.Value(uint(i)))
 	}
+
+	assert.Same(t, &b[0], &vec.GetRawBytes()[0])
 }
 
 func TestNullableUint8Vector(t *testing.T) {
@@ -520,6 +567,9 @@ func TestNullableUint8Vector(t *testing.T) {
 
 	vec := data.NewNullableUint8Vector(append(bytemap, b...), meta)
 	assert.Equal(t, reflect.TypeOf(uint8(0)), vec.Type())
+
+	assert.EqualValues(t, b, vec.GetRawBytes())
+	assert.EqualValues(t, bytemap, vec.GetNullBytemap())
 
 	l, ok := vec.TypeLen()
 	assert.Zero(t, l)

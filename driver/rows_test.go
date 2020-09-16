@@ -107,7 +107,7 @@ func getSampleRecordBatch() *drill.RecordBatch {
 
 	rb := &drill.RecordBatch{
 		Def:  &sampleDef,
-		Vecs: make([]data.DataVector, 0, len(sampleDef.GetField())),
+		Vecs: make([]drill.DataVector, 0, len(sampleDef.GetField())),
 	}
 
 	var offset int32 = 0

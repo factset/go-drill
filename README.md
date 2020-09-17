@@ -1,8 +1,8 @@
 # go-drill
 
-[![codecov](https://codecov.io/gh/zeroshade/go-drill/branch/master/graph/badge.svg)](https://codecov.io/gh/zeroshade/go-drill)
-[![CI Test](https://github.com/zeroshade/go-drill/workflows/Go/badge.svg)](https://github.com/zeroshade/go-drill/actions)
-[![Smoke Test](https://github.com/zeroshade/go-drill/workflows/SmokeTest/badge.svg)](https://github.com/zeroshade/go-drill/actions)
+[![codecov](https://codecov.io/gh/factset/go-drill/branch/master/graph/badge.svg)](https://codecov.io/gh/factset/go-drill)
+[![CI Test](https://github.com/factset/go-drill/workflows/Go/badge.svg)](https://github.com/factset/go-drill/actions)
+[![Smoke Test](https://github.com/factset/go-drill/workflows/SmokeTest/badge.svg)](https://github.com/factset/go-drill/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
 go-drill is a highly efficient Pure Go Client and Sql driver for [Apache Drill](https://drill.apache.org). It differs from other clients / drivers by using the

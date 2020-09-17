@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jcmturner/gokrb5/v8/gssapi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/factset/go-drill/internal/rpc/proto/exec"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 	"github.com/factset/go-drill/sasl"
+	"github.com/jcmturner/gokrb5/v8/gssapi"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"google.golang.org/protobuf/proto"
 )
 

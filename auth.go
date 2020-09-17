@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/jcmturner/gokrb5/v8/gssapi"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 	"github.com/factset/go-drill/sasl"
+	"github.com/jcmturner/gokrb5/v8/gssapi"
 	"google.golang.org/protobuf/proto"
 )
 

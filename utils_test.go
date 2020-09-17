@@ -6,11 +6,11 @@ import (
 	"io"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/stretchr/testify/assert"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
+	"github.com/golang/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 )
 
 var deadbeef = []byte{0xDE, 0xAD, 0xBE, 0xEF}

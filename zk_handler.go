@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-zookeeper/zk"
 	"github.com/factset/go-drill/internal/log"
 	"github.com/factset/go-drill/internal/rpc/proto/exec"
+	"github.com/go-zookeeper/zk"
 	"google.golang.org/protobuf/proto"
 )
 

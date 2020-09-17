@@ -11,15 +11,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/factset/go-drill/internal/rpc/proto/exec"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 	"github.com/go-zookeeper/zk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/factset/go-drill/internal/rpc/proto/exec"
-	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
-	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
-	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 	"google.golang.org/protobuf/proto"
 )
 

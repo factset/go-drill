@@ -1,6 +1,7 @@
 # go-drill
 
 [![codecov](https://codecov.io/gh/factset/go-drill/branch/master/graph/badge.svg)](https://codecov.io/gh/factset/go-drill)
+[![Go Report Card](https://goreportcard.com/badge/github.com/factset/go-drill)](https://goreportcard.com/report/github.com/factset/go-drill)
 [![CI Test](https://github.com/factset/go-drill/workflows/Go/badge.svg)](https://github.com/factset/go-drill/actions)
 [![Smoke Test](https://github.com/factset/go-drill/workflows/SmokeTest/badge.svg)](https://github.com/factset/go-drill/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)

@@ -6,7 +6,7 @@
 //   import (
 //     "database/sql"
 //
-//     _ "github.com/zeroshade/go-drill/driver"
+//     _ "github.com/factset/go-drill/driver"
 //   )
 //
 //   func main() {

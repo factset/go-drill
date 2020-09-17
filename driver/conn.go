@@ -7,7 +7,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/zeroshade/go-drill"
+	"github.com/factset/go-drill"
 )
 
 var errNoPrepSupport = errors.New("drill does not support parameters in prepared statements")

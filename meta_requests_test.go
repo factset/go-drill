@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 	"google.golang.org/protobuf/proto"
 )
 

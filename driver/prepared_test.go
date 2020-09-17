@@ -10,8 +10,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/zeroshade/go-drill"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 )
 
 func TestPreparedImplements(t *testing.T) {

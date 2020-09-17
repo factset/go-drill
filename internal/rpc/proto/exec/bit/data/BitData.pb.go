@@ -26,9 +26,9 @@ package data
 
 import (
 	proto "github.com/golang/protobuf/proto"
-	_ "github.com/zeroshade/go-drill/internal/rpc/proto/exec"
-	_ "github.com/zeroshade/go-drill/internal/rpc/proto/exec/bit"
-	shared "github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+	_ "github.com/factset/go-drill/internal/rpc/proto/exec"
+	_ "github.com/factset/go-drill/internal/rpc/proto/exec/bit"
+	shared "github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

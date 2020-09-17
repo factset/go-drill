@@ -26,7 +26,7 @@ package rpc
 
 import (
 	proto "github.com/golang/protobuf/proto"
-	_ "github.com/zeroshade/go-drill/internal/rpc/proto/exec"
+	_ "github.com/factset/go-drill/internal/rpc/proto/exec"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/zeroshade/go-drill"
+	"github.com/factset/go-drill"
 )
 
 func Example() {

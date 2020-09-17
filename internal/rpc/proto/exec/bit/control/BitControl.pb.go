@@ -26,9 +26,9 @@ package control
 
 import (
 	proto "github.com/golang/protobuf/proto"
-	exec "github.com/zeroshade/go-drill/internal/rpc/proto/exec"
-	bit "github.com/zeroshade/go-drill/internal/rpc/proto/exec/bit"
-	shared "github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+	exec "github.com/factset/go-drill/internal/rpc/proto/exec"
+	bit "github.com/factset/go-drill/internal/rpc/proto/exec/bit"
+	shared "github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

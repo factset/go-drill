@@ -86,7 +86,7 @@ func fixup(dirpath string) {
 	reGopkg := regexp.MustCompile(`option go_package = (".*");`)
 	rePkg := regexp.MustCompile(`package (?P<package>.*);`)
 
-	root := []string{"github.com/zeroshade/go-drill/internal/rpc/proto"}
+	root := []string{"github.com/factset/go-drill/internal/rpc/proto"}
 
 	for _, f := range files {
 		contents, err := ioutil.ReadFile(filepath.Join(dirpath, f.Name()))

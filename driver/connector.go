@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zeroshade/go-drill"
+	"github.com/factset/go-drill"
 )
 
 type connector struct {

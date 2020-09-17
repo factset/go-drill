@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zeroshade/go-drill/internal/data"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/common"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill/internal/data"
+	"github.com/factset/go-drill/internal/rpc/proto/common"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	"google.golang.org/protobuf/proto"
 )
 

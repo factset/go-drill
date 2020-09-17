@@ -6,7 +6,7 @@ import (
 	"github.com/go-zookeeper/zk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec"
+	"github.com/factset/go-drill/internal/rpc/proto/exec"
 	"google.golang.org/protobuf/proto"
 )
 

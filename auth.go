@@ -6,10 +6,10 @@ import (
 	"math"
 
 	"github.com/jcmturner/gokrb5/v8/gssapi"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
-	"github.com/zeroshade/go-drill/sasl"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
+	"github.com/factset/go-drill/sasl"
 	"google.golang.org/protobuf/proto"
 )
 

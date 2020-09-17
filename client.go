@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zeroshade/go-drill/internal/log"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
+	"github.com/factset/go-drill/internal/log"
+	"github.com/factset/go-drill/internal/rpc/proto/exec"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 	"google.golang.org/protobuf/proto"
 )
 

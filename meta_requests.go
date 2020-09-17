@@ -3,8 +3,8 @@ package drill
 import (
 	"fmt"
 
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/rpc"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 )
 
 func getLikeFilter(pattern string, escape *string) *user.LikeFilter {

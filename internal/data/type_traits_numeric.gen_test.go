@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zeroshade/go-drill/internal/data"
+	"github.com/factset/go-drill/internal/data"
 )
 
 func TestInt64Traits(t *testing.T) {

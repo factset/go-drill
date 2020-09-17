@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/zeroshade/go-drill/internal/data"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/user"
+	"github.com/factset/go-drill/internal/data"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 )
 
 type DataVector data.DataVector

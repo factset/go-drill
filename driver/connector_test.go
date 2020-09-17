@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/zeroshade/go-drill"
+	"github.com/factset/go-drill"
 )
 
 type mockDrillClient struct {

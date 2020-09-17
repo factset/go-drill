@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/zeroshade/go-drill/internal/rpc/proto/common"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill/internal/rpc/proto/common"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	"google.golang.org/protobuf/proto"
 )
 

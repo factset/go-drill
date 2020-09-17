@@ -5,8 +5,8 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/zeroshade/go-drill"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/common"
+	"github.com/factset/go-drill"
+	"github.com/factset/go-drill/internal/rpc/proto/common"
 )
 
 type rows struct {

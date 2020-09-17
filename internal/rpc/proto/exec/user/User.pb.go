@@ -26,12 +26,12 @@ package user
 
 import (
 	proto "github.com/golang/protobuf/proto"
-	common "github.com/zeroshade/go-drill/internal/rpc/proto/common"
-	_ "github.com/zeroshade/go-drill/internal/rpc/proto/exec"
-	_ "github.com/zeroshade/go-drill/internal/rpc/proto/exec/bit"
-	control "github.com/zeroshade/go-drill/internal/rpc/proto/exec/bit/control"
-	_ "github.com/zeroshade/go-drill/internal/rpc/proto/exec/bit/data"
-	shared "github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+	common "github.com/factset/go-drill/internal/rpc/proto/common"
+	_ "github.com/factset/go-drill/internal/rpc/proto/exec"
+	_ "github.com/factset/go-drill/internal/rpc/proto/exec/bit"
+	control "github.com/factset/go-drill/internal/rpc/proto/exec/bit/control"
+	_ "github.com/factset/go-drill/internal/rpc/proto/exec/bit/data"
+	shared "github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

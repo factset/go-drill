@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	"io"
 
-	"github.com/zeroshade/go-drill"
+	"github.com/factset/go-drill"
 )
 
 type prepared struct {

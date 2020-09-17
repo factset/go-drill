@@ -1,4 +1,4 @@
-module github.com/zeroshade/go-drill
+module github.com/factset/go-drill
 
 go 1.14
 

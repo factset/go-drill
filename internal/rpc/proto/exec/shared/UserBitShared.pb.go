@@ -26,8 +26,8 @@ package shared
 
 import (
 	proto "github.com/golang/protobuf/proto"
-	common "github.com/zeroshade/go-drill/internal/rpc/proto/common"
-	exec "github.com/zeroshade/go-drill/internal/rpc/proto/exec"
+	common "github.com/factset/go-drill/internal/rpc/proto/common"
+	exec "github.com/factset/go-drill/internal/rpc/proto/exec"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/go-zookeeper/zk"
-	"github.com/zeroshade/go-drill/internal/log"
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec"
+	"github.com/factset/go-drill/internal/log"
+	"github.com/factset/go-drill/internal/rpc/proto/exec"
 	"google.golang.org/protobuf/proto"
 )
 

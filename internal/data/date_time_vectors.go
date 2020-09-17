@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 )
 
 type TimestampVector struct {

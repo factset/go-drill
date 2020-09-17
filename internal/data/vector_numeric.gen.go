@@ -4,7 +4,7 @@ package data
 import (
 	"reflect"
 
-	"github.com/zeroshade/go-drill/internal/rpc/proto/exec/shared"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 )
 
 // Int64 vector

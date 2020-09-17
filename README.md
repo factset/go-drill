@@ -23,13 +23,13 @@ drillbits, though you can connect directly to a drillbit via the Client.
 #### Client
 
 ```bash
-go get -u github.com/zeroshade/go-drill
+go get -u github.com/factset/go-drill
 ```
 
 #### Driver
 
 ```bash
-go get -u github.com/zeroshade/go-drill/driver
+go get -u github.com/factset/go-drill/driver
 ```
 
 ## Usage
@@ -41,7 +41,7 @@ import (
   "strings"
   "database/sql"
 
-  _ "github.com/zeroshade/go-drill/driver"
+  _ "github.com/factset/go-drill/driver"
 )
 
 func main() {
@@ -62,7 +62,7 @@ Alternately, you can just use the client directly:
 import (
   "context"
 
-  "github.com/zeroshade/go-drill"
+  "github.com/factset/go-drill"
 )
 
 func main() {
@@ -82,7 +82,7 @@ func main() {
 
 A command is provided to easily refresh the protobuf definitions, provided you have
 `protoc` already on your `PATH`. The source should be in a directory structure like
-`.../github.com/zeroshade/go-drill/` for development, allowing usage of `go generate`
+`.../github.com/factset/go-drill/` for development, allowing usage of `go generate`
 which will run the command.
 
 Alternatively, the provided command `drillProto` can be used manually via
@@ -110,11 +110,11 @@ Options:
 `drillProto download` will simply download the .proto files to the specified path
 from the apache drill github repo.
 
-`drillProto fixup` adds the `option go_package = "github.com/zeroshade/go-drill/internal/rpc/proto/..."` to each file.
+`drillProto fixup` adds the `option go_package = "github.com/factset/go-drill/internal/rpc/proto/..."` to each file.
 
 `drillProto gen` will generate the `.pb.go` files from the protobuf files, using the
 provided `ROOTPATH` as the root output where it will write the files in the structure
-of `<ROOTPATH>/github.com/zeroshade/go-drill/internal/rpc/proto/...`.
+of `<ROOTPATH>/github.com/factset/go-drill/internal/rpc/proto/...`.
 
 `drillProto runall` does all of the steps in order as one command.
 

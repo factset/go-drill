@@ -26,8 +26,8 @@ func Example_kerberos() {
 
 	batch, err := dh.Next()
 	for ; err == nil; batch, err = dh.Next() {
-		for i := int32(0); i < batch.Def.GetRecordCount(); i++ {
-			for _, v := range batch.Vecs {
+		for i := int32(0); i < batch.NumRows(); i++ {
+			for _, v := range batch.GetVectors() {
 				val := v.Value(uint(i))
 				switch t := val.(type) {
 				case []byte:

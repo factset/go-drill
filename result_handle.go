@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/factset/go-drill/internal/data"
+	"github.com/factset/go-drill/internal/rpc/proto/common"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 )
@@ -16,11 +17,21 @@ type NullableDataVector data.NullableDataVector
 // A DataHandler is an object that allows iterating through record batches as the data
 // comes in, or cancelling a running query.
 type DataHandler interface {
-	Next() (*RecordBatch, error)
+	Next() (DataBatch, error)
 	Cancel()
 	GetCols() []string
-	GetRecordBatch() *RecordBatch
+	GetRecordBatch() DataBatch
 	Close() error
+}
+
+type DataBatch interface {
+	NumCols() int
+	NumRows() int32
+	AffectedRows() int32
+	IsNullable(index int) bool
+	TypeName(index int) string
+	PrecisionScale(index int) (precision, scale int64, ok bool)
+	GetVectors() []DataVector
 }
 
 // A ResultHandle is an opaque handle for a given result set, implementing the DataHandler
@@ -32,7 +43,7 @@ type DataHandler interface {
 type ResultHandle struct {
 	dataChannel chan *queryData
 	queryResult *shared.QueryResult
-	curBatch    *RecordBatch
+	curBatch    *recordBatch
 
 	queryID *shared.QueryId
 	client  *Client
@@ -49,7 +60,7 @@ type ResultHandle struct {
 // Keep in mind that Apache Drill *does not* support parameters in prepared statements
 type PreparedHandle interface{}
 
-// A RecordBatch represents the data and meta information for one group of rows.
+// A recordBatch represents the data and meta information for one group of rows.
 //
 // How to Interpret
 //
@@ -69,9 +80,53 @@ type PreparedHandle interface{}
 //
 // Eventually this will likely hide the protobuf implementation behind an interface,
 // but for now it was easier to just expose the protobuf definitions.
-type RecordBatch struct {
-	Def  *shared.RecordBatchDef
-	Vecs []DataVector
+type recordBatch struct {
+	def  *shared.RecordBatchDef
+	vecs []DataVector
+}
+
+func (rb *recordBatch) GetVectors() []DataVector {
+	return rb.vecs
+}
+
+func (rb *recordBatch) AffectedRows() int32 {
+	return rb.def.GetAffectedRowsCount()
+}
+
+func (rb *recordBatch) NumCols() int {
+	return len(rb.def.Field)
+}
+
+func (rb *recordBatch) NumRows() int32 {
+	return rb.def.GetRecordCount()
+}
+
+func (rb *recordBatch) IsNullable(index int) bool {
+	return rb.def.Field[index].MajorType.GetMode() == common.DataMode_OPTIONAL
+}
+
+func (rb *recordBatch) TypeName(index int) string {
+	return rb.def.Field[index].MajorType.GetMinorType().String()
+}
+
+func (rb *recordBatch) PrecisionScale(index int) (precision, scale int64, ok bool) {
+	typ := rb.def.Field[index].GetMajorType()
+	switch typ.GetMinorType() {
+	case common.MinorType_DECIMAL9,
+		common.MinorType_DECIMAL18,
+		common.MinorType_DECIMAL28SPARSE,
+		common.MinorType_DECIMAL38SPARSE,
+		common.MinorType_MONEY,
+		common.MinorType_FLOAT4,
+		common.MinorType_FLOAT8,
+		common.MinorType_DECIMAL28DENSE,
+		common.MinorType_DECIMAL38DENSE:
+
+		precision = int64(typ.GetPrecision())
+		scale = int64(typ.GetScale())
+		ok = true
+	}
+	return
 }
 
 // Close the channel and remove the query handler from the client
@@ -85,7 +140,7 @@ func (r *ResultHandle) Close() error {
 // recieved one it will attempt to check the channel and block for the first
 // batch. If this returns nil then that means there is no data and calling
 // Next will return the status.
-func (r *ResultHandle) GetRecordBatch() *RecordBatch {
+func (r *ResultHandle) GetRecordBatch() DataBatch {
 	if r.curBatch == nil {
 		r.nextBatch()
 	}
@@ -103,8 +158,8 @@ func (r *ResultHandle) GetCols() []string {
 		r.nextBatch()
 	}
 
-	cols := make([]string, len(r.curBatch.Def.GetField()))
-	for idx, f := range r.curBatch.Def.GetField() {
+	cols := make([]string, len(r.curBatch.def.GetField()))
+	for idx, f := range r.curBatch.def.GetField() {
 		cols[idx] = *f.NamePart.Name
 	}
 
@@ -147,7 +202,7 @@ var (
 // If there are no more record batches and the query did not complete successfully,
 // it will return either an error wrapping ErrQueryFailed, or one of the other
 // error types.
-func (r *ResultHandle) Next() (*RecordBatch, error) {
+func (r *ResultHandle) Next() (DataBatch, error) {
 	r.curBatch = nil
 	r.nextBatch()
 	if r.curBatch != nil {
@@ -182,14 +237,14 @@ func (r *ResultHandle) nextBatch() {
 	case int32(user.RpcType_QUERY_DATA):
 		// more data!
 		qd := q.msg.(*shared.QueryData)
-		r.curBatch = &RecordBatch{
-			Vecs: make([]DataVector, 0, len(qd.GetDef().GetField())),
-			Def:  qd.GetDef(),
+		r.curBatch = &recordBatch{
+			vecs: make([]DataVector, 0, len(qd.GetDef().GetField())),
+			def:  qd.GetDef(),
 		}
 
 		var offset int32 = 0
 		for _, f := range qd.GetDef().GetField() {
-			r.curBatch.Vecs = append(r.curBatch.Vecs, data.NewValueVec(q.raw[offset:offset+f.GetBufferLength()], f))
+			r.curBatch.vecs = append(r.curBatch.vecs, data.NewValueVec(q.raw[offset:offset+f.GetBufferLength()], f))
 			offset += f.GetBufferLength()
 		}
 	case int32(user.RpcType_QUERY_RESULT):

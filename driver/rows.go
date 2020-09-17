@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/factset/go-drill"
-	"github.com/factset/go-drill/internal/rpc/proto/common"
 )
 
 type rows struct {
@@ -28,7 +27,7 @@ func (r *rows) Next(dest []driver.Value) error {
 		return io.EOF
 	}
 
-	if int32(r.curRow) >= rb.Def.GetRecordCount() {
+	if int32(r.curRow) >= rb.NumRows() {
 		var err error
 		rb, err = r.handle.Next()
 		if err != nil {
@@ -38,8 +37,9 @@ func (r *rows) Next(dest []driver.Value) error {
 		r.curRow = 0
 	}
 
+	src := rb.GetVectors()
 	for i := range dest {
-		dest[i] = rb.Vecs[i].Value(uint(r.curRow))
+		dest[i] = src[i].Value(uint(r.curRow))
 	}
 
 	r.curRow++
@@ -47,37 +47,21 @@ func (r *rows) Next(dest []driver.Value) error {
 }
 
 func (r *rows) ColumnTypeScanType(index int) reflect.Type {
-	return r.handle.GetRecordBatch().Vecs[index].Type()
+	return r.handle.GetRecordBatch().GetVectors()[index].Type()
 }
 
 func (r *rows) ColumnTypeNullable(index int) (nullable, ok bool) {
-	return r.handle.GetRecordBatch().Def.GetField()[index].MajorType.GetMode() == common.DataMode_OPTIONAL, true
+	return r.handle.GetRecordBatch().IsNullable(index), true
 }
 
 func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
-	return r.handle.GetRecordBatch().Def.GetField()[index].MajorType.GetMinorType().String()
+	return r.handle.GetRecordBatch().TypeName(index)
 }
 
 func (r *rows) ColumnTypeLength(index int) (int64, bool) {
-	return r.handle.GetRecordBatch().Vecs[index].TypeLen()
+	return r.handle.GetRecordBatch().GetVectors()[index].TypeLen()
 }
 
 func (r *rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
-	typ := r.handle.GetRecordBatch().Def.GetField()[index].GetMajorType()
-	switch typ.GetMinorType() {
-	case common.MinorType_DECIMAL9,
-		common.MinorType_DECIMAL18,
-		common.MinorType_DECIMAL28SPARSE,
-		common.MinorType_DECIMAL38SPARSE,
-		common.MinorType_MONEY,
-		common.MinorType_FLOAT4,
-		common.MinorType_FLOAT8,
-		common.MinorType_DECIMAL28DENSE,
-		common.MinorType_DECIMAL38DENSE:
-
-		precision = int64(typ.GetPrecision())
-		scale = int64(typ.GetScale())
-		ok = true
-	}
-	return
+	return r.handle.GetRecordBatch().PrecisionScale(index)
 }

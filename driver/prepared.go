@@ -58,9 +58,9 @@ func (p *prepared) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	var affectedRows int64 = 0
 	err = processWithCtx(ctx, handle, func(h drill.DataHandler) error {
 		var err error
-		var batch *drill.RecordBatch
+		var batch drill.DataBatch
 		for batch, err = h.Next(); err == nil; batch, err = h.Next() {
-			affectedRows += int64(batch.Def.GetAffectedRowsCount())
+			affectedRows += int64(batch.AffectedRows())
 		}
 
 		return err

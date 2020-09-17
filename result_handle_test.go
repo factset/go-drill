@@ -82,8 +82,8 @@ func ExampleResultHandle_Next() {
 	// iterate the batches
 	batch, err := rh.Next()
 	for ; err == nil; batch, err = rh.Next() {
-		for i := int32(0); i < batch.Def.GetRecordCount(); i++ {
-			for _, v := range batch.Vecs {
+		for i := int32(0); i < batch.NumRows(); i++ {
+			for _, v := range batch.GetVectors() {
 				val := v.Value(uint(i))
 				switch t := val.(type) {
 				case []byte:
@@ -174,11 +174,11 @@ func ExampleResultHandle_GetRecordBatch() {
 
 	// at the start the record batch is nil, so the first call will grab from the channel
 	rb := rh.GetRecordBatch()
-	fmt.Printf("Num Cols: %d\n", len(rb.Def.Field))
-	fmt.Printf("Rows in this Batch: %d\n", rb.Def.GetRecordCount())
+	fmt.Printf("Num Cols: %d\n", rb.NumCols())
+	fmt.Printf("Rows in this Batch: %d\n", rb.NumRows())
 
-	for idx, f := range rb.Def.Field {
-		fmt.Printf("Col %d: %s\n", idx, f.NamePart.GetName())
+	for idx, f := range rh.GetCols() {
+		fmt.Printf("Col %d: %s\n", idx, f)
 	}
 
 	// we didn't call Next, so GetRecordBatch still returns the same batch we're on

@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/factset/go-drill"
-	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -57,14 +55,11 @@ func TestPreparedExecContext(t *testing.T) {
 	p := drill.PreparedHandle(5)
 	m.On("ExecuteStmt", p).Return(mr, nil)
 
-	rb := &drill.RecordBatch{
-		Def: &shared.RecordBatchDef{
-			AffectedRowsCount: proto.Int32(5),
-		},
-	}
+	rb := new(mockBatch)
+	rb.On("AffectedRows").Return(5)
 
 	mr.On("Next").Return(nil, rb).Twice()
-	mr.On("Next").Return(io.EOF, (*drill.RecordBatch)(nil))
+	mr.On("Next").Return(io.EOF, (drill.DataBatch)(nil))
 
 	prep := &prepared{stmt: p, client: m}
 	r, err := prep.ExecContext(context.Background(), []driver.NamedValue{})
@@ -89,14 +84,11 @@ func TestPreparedExecContextWithErr(t *testing.T) {
 	p := drill.PreparedHandle(5)
 	m.On("ExecuteStmt", p).Return(mr, nil)
 
-	rb := &drill.RecordBatch{
-		Def: &shared.RecordBatchDef{
-			AffectedRowsCount: proto.Int32(5),
-		},
-	}
+	rb := new(mockBatch)
+	rb.On("AffectedRows").Return(5)
 
 	mr.On("Next").Return(nil, rb).Twice()
-	mr.On("Next").Return(assert.AnError, (*drill.RecordBatch)(nil))
+	mr.On("Next").Return(assert.AnError, (drill.DataBatch)(nil))
 
 	prep := &prepared{stmt: p, client: m}
 	r, err := prep.ExecContext(context.Background(), []driver.NamedValue{})
@@ -122,7 +114,7 @@ func TestPreparedExecContextCtxTimeout(t *testing.T) {
 	mr.On("Cancel").Run(func(mock.Arguments) {
 		waiter <- time.Now()
 	})
-	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (*drill.RecordBatch)(nil))
+	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.DataBatch)(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -200,7 +192,7 @@ func TestPreparedQueryContextCtxTimeout(t *testing.T) {
 	mr.On("Cancel").Run(func(mock.Arguments) {
 		waiter <- time.Now()
 	})
-	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (*drill.RecordBatch)(nil))
+	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.DataBatch)(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -221,7 +213,7 @@ func TestPreparedQueryContext(t *testing.T) {
 
 	p := drill.PreparedHandle(5)
 	m.On("ExecuteStmt", p).Return(mr, nil)
-	mr.On("Next").Return(nil, (*drill.RecordBatch)(nil))
+	mr.On("Next").Return(nil, (drill.DataBatch)(nil))
 
 	prep := &prepared{stmt: p, client: m}
 	r, err := prep.QueryContext(context.Background(), []driver.NamedValue{})

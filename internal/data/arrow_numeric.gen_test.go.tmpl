@@ -1,0 +1,59 @@
+package data_test
+
+import (
+	"testing"
+
+	"github.com/apache/arrow/go/arrow"
+	"github.com/apache/arrow/go/arrow/array"
+	"github.com/factset/go-drill/internal/data"
+	"github.com/factset/go-drill/internal/rpc/proto/common"
+	"github.com/stretchr/testify/assert"
+)
+
+{{- range .In}}
+
+func Test{{.Name}}Arrow(t *testing.T) {
+	const N = 10
+	b := data.{{.Name}}Traits.CastToBytes([]{{.Type}}{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	meta := createMetaField(common.DataMode_REQUIRED, common.MinorType_{{.ProtoType}}.Enum(), int32(N), int32(len(b)))
+
+	arr := data.NewArrowArray(b, meta)
+	assert.NotNil(t, arr)
+	assert.IsType(t, arrow.PrimitiveTypes.{{.Name}}, arr.DataType())
+	assert.Equal(t, N, arr.Len())
+	assert.Zero(t, arr.NullN())
+
+	for i := 0; i < N; i++ {
+		assert.True(t, arr.IsValid(i))
+		assert.Equal(t, {{.name}}(i), arr.(*array.{{.Name}}).Value(i))
+	}
+}
+
+func TestOptional{{.Name}}Arrow(t *testing.T) {
+	const N = 10
+	b := data.{{.Name}}Traits.CastToBytes([]{{.Type}}{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	bytemap := []byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1}
+  meta := createMetaField(common.DataMode_OPTIONAL, common.MinorType_{{.ProtoType}}.Enum(), int32(N), int32(len(b)))
+
+	rawData := append(bytemap, b...)
+
+	arr := data.NewArrowArray(rawData, meta)
+	assert.NotNil(t, arr)
+	assert.IsType(t, arrow.PrimitiveTypes.{{.Name}}, arr.DataType())
+	assert.Equal(t, N, arr.Len())
+	assert.Equal(t, N/2, arr.NullN())
+
+	for i := 0; i < N; i++ {
+		assert.Exactly(t, i%2 == 0, arr.IsNull(i))
+		if i%2 == 1 {
+			assert.Exactly(t, {{.Type}}(i), arr.(*array.{{.Name}}).Value(i))
+		}
+	}
+}
+{{end}}

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/factset/go-drill"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/factset/go-drill"
 )
 
 type mockDrillClient struct {

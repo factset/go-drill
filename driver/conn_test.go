@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/factset/go-drill"
+	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/factset/go-drill"
-	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 )
 
 func TestConnImplements(t *testing.T) {

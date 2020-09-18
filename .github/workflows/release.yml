@@ -39,6 +39,8 @@ jobs:
         id: go
 
       - uses: actions/checkout@v2
+      - run: |
+          git fetch --prune --unshallow --tags
 
       - name: Get go-semantic-release
         env:

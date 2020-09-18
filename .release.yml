@@ -5,3 +5,6 @@ github:
   repo: "go-drill"
   user: "factset"
 commitFormat: angular
+changelog:
+  printAll: true
+  templatePath: "./changelog.tmpl"

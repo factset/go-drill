@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait For Build Check
+        uses: lewagon/wait-on-check-action@v0.1
+        with:
+          ref: master
+          check-name: "Build"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10 # seconds
+
+      - name: Wait For ZK SmokeTest (true)
+        uses: lewagon/wait-on-check-action@v0.1
+        with:
+          ref: master
+          check-name: "ZK Drill Test (true)"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10 # seconds
+
+      - name: Wait For ZK SmokeTest (false)
+        uses: lewagon/wait-on-check-action@v0.1
+        with:
+          ref: master
+          check-name: "ZK Drill Test (false)"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10 # seconds
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.14
+        id: go
+
+      - uses: actions/checkout@v2
+
+      - name: Get go-semantic-release
+        env:
+          GO111MODULE: "on"
+        run: go get github.com/Nightapes/go-semantic-release/cmd/go-semantic-release
+
+      - name: Do release
+        env:
+          CI: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: go-semantic-release release --loglevel trace

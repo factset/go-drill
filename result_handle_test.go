@@ -176,9 +176,12 @@ func ExampleResultHandle_GetRecordBatch() {
 	rb := rh.GetRecordBatch()
 	fmt.Printf("Num Cols: %d\n", rb.NumCols())
 	fmt.Printf("Rows in this Batch: %d\n", rb.NumRows())
+	// 0 affected rows since this wasn't an insert / update
+	fmt.Printf("Affected Rows: %d\n", rb.AffectedRows())
 
 	for idx, f := range rh.GetCols() {
-		fmt.Printf("Col %d: %s\n", idx, f)
+		fmt.Printf("Col %d: %s\tNullable: %#v\tType: %s\n", idx,
+			f, rb.IsNullable(idx), rb.TypeName(idx))
 	}
 
 	// we didn't call Next, so GetRecordBatch still returns the same batch we're on
@@ -188,10 +191,11 @@ func ExampleResultHandle_GetRecordBatch() {
 	// Output:
 	// Num Cols: 4
 	// Rows in this Batch: 9
-	// Col 0: N_NATIONKEY
-	// Col 1: N_NAME
-	// Col 2: N_REGIONKEY
-	// Col 3: N_COMMENT
+	// Affected Rows: 0
+	// Col 0: N_NATIONKEY	Nullable: false	Type: BIGINT
+	// Col 1: N_NAME	Nullable: false	Type: VARBINARY
+	// Col 2: N_REGIONKEY	Nullable: false	Type: BIGINT
+	// Col 3: N_COMMENT	Nullable: false	Type: VARBINARY
 	// true
 }
 

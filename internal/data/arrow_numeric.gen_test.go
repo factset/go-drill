@@ -2,6 +2,7 @@
 package data_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/apache/arrow/go/arrow"
@@ -22,6 +23,7 @@ func TestInt64Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Int64, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(int64(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -67,6 +69,7 @@ func TestInt32Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Int32, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(int32(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -112,6 +115,7 @@ func TestFloat64Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Float64, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(float64(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -157,6 +161,7 @@ func TestUint64Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Uint64, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(uint64(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -202,6 +207,7 @@ func TestUint32Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Uint32, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(uint32(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -247,6 +253,7 @@ func TestFloat32Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Float32, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(float32(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -292,6 +299,7 @@ func TestInt16Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Int16, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(int16(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -337,6 +345,7 @@ func TestUint16Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Uint16, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(uint16(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -382,6 +391,7 @@ func TestInt8Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Int8, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(int8(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -427,6 +437,7 @@ func TestUint8Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.Uint8, arr.DataType())
+	assert.Equal(t, reflect.TypeOf(uint8(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 

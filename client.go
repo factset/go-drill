@@ -84,6 +84,7 @@ type Client struct {
 	serverInfo      *user.BitToUserHandshake
 	cancelHeartBeat context.CancelFunc
 	hbMutex         sync.Mutex
+	dataImpl        dataImplType
 
 	resultMap sync.Map
 	queryMap  sync.Map
@@ -95,6 +96,10 @@ type Client struct {
 // NewClient initializes a Drill Client with the given options but does not
 // actually connect yet. It also allows specifying the zookeeper cluster nodes here.
 func NewClient(opts Options, zk ...string) *Client {
+	impl := basicData
+	if opts.UseArrow {
+		impl = arrowData
+	}
 	return &Client{
 		close:       make(chan struct{}),
 		outbound:    make(chan []byte, 10),
@@ -103,6 +108,7 @@ func NewClient(opts Options, zk ...string) *Client {
 		ZkNodes:     zk,
 		dataEncoder: rpcEncoder{},
 		Opts:        opts,
+		dataImpl:    impl,
 	}
 }
 
@@ -471,6 +477,7 @@ func (d *Client) SubmitQuery(t QueryType, plan string) (DataHandler, error) {
 		dataChannel: dataChannel,
 		queryID:     resp,
 		client:      d,
+		implType:    d.dataImpl,
 	}, nil
 }
 
@@ -500,6 +507,7 @@ func (d *Client) ExecuteStmt(hndl PreparedHandle) (DataHandler, error) {
 		dataChannel: dataChannel,
 		queryID:     resp,
 		client:      d,
+		implType:    d.dataImpl,
 	}, nil
 }
 

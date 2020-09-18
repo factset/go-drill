@@ -41,4 +41,7 @@ type Options struct {
 	// the heartbeatfrequency to use, if nil then will use the default (15 seconds)
 	// set to 0 to disable it.
 	HeartbeatFreq *time.Duration
+	// UseArrow controls whether the raw data in the results is underlined by arrow
+	// arrays (if true) or not (if false, default)
+	UseArrow bool
 }

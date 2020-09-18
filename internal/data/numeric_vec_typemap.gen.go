@@ -19,14 +19,26 @@ func NewNumericValueVec(rawData []byte, meta *shared.SerializedField) DataVector
 		case common.MinorType_FLOAT8:
 			return NewNullableFloat64Vector(rawData, meta)
 
+		case common.MinorType_UINT8:
+			return NewNullableUint64Vector(rawData, meta)
+
+		case common.MinorType_UINT4:
+			return NewNullableUint32Vector(rawData, meta)
+
 		case common.MinorType_FLOAT4:
 			return NewNullableFloat32Vector(rawData, meta)
 
 		case common.MinorType_SMALLINT:
 			return NewNullableInt16Vector(rawData, meta)
 
+		case common.MinorType_UINT2:
+			return NewNullableUint16Vector(rawData, meta)
+
 		case common.MinorType_TINYINT:
 			return NewNullableInt8Vector(rawData, meta)
+
+		case common.MinorType_UINT1:
+			return NewNullableUint8Vector(rawData, meta)
 
 		default:
 			return nil
@@ -44,14 +56,26 @@ func NewNumericValueVec(rawData []byte, meta *shared.SerializedField) DataVector
 	case common.MinorType_FLOAT8:
 		return NewFloat64Vector(rawData, meta)
 
+	case common.MinorType_UINT8:
+		return NewUint64Vector(rawData, meta)
+
+	case common.MinorType_UINT4:
+		return NewUint32Vector(rawData, meta)
+
 	case common.MinorType_FLOAT4:
 		return NewFloat32Vector(rawData, meta)
 
 	case common.MinorType_SMALLINT:
 		return NewInt16Vector(rawData, meta)
 
+	case common.MinorType_UINT2:
+		return NewUint16Vector(rawData, meta)
+
 	case common.MinorType_TINYINT:
 		return NewInt8Vector(rawData, meta)
+
+	case common.MinorType_UINT1:
+		return NewUint8Vector(rawData, meta)
 
 	default:
 		return nil

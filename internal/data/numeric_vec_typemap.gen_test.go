@@ -122,6 +122,80 @@ func TestNewNumericVecOptionalFloat64(t *testing.T) {
 	assert.IsType(t, (*data.NullableFloat64Vector)(nil), dv)
 }
 
+func TestNewNumericVecRequiredUint64(t *testing.T) {
+	const N = 10
+	b := data.Uint64Traits.CastToBytes([]uint64{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	meta := &shared.SerializedField{
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_UINT8.Enum(),
+			Mode:      common.DataMode_REQUIRED.Enum(),
+		},
+	}
+
+	dv := data.NewValueVec(b, meta)
+	assert.IsType(t, (*data.Uint64Vector)(nil), dv)
+}
+
+func TestNewNumericVecOptionalUint64(t *testing.T) {
+	const N = 10
+	b := data.Uint64Traits.CastToBytes([]uint64{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	bytemap := []byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1}
+
+	meta := &shared.SerializedField{
+		ValueCount: proto.Int32(0),
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_UINT8.Enum(),
+			Mode:      common.DataMode_OPTIONAL.Enum(),
+		},
+	}
+
+	dv := data.NewValueVec(append(bytemap, b...), meta)
+	assert.IsType(t, (*data.NullableUint64Vector)(nil), dv)
+}
+
+func TestNewNumericVecRequiredUint32(t *testing.T) {
+	const N = 10
+	b := data.Uint32Traits.CastToBytes([]uint32{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	meta := &shared.SerializedField{
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_UINT4.Enum(),
+			Mode:      common.DataMode_REQUIRED.Enum(),
+		},
+	}
+
+	dv := data.NewValueVec(b, meta)
+	assert.IsType(t, (*data.Uint32Vector)(nil), dv)
+}
+
+func TestNewNumericVecOptionalUint32(t *testing.T) {
+	const N = 10
+	b := data.Uint32Traits.CastToBytes([]uint32{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	bytemap := []byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1}
+
+	meta := &shared.SerializedField{
+		ValueCount: proto.Int32(0),
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_UINT4.Enum(),
+			Mode:      common.DataMode_OPTIONAL.Enum(),
+		},
+	}
+
+	dv := data.NewValueVec(append(bytemap, b...), meta)
+	assert.IsType(t, (*data.NullableUint32Vector)(nil), dv)
+}
+
 func TestNewNumericVecRequiredFloat32(t *testing.T) {
 	const N = 10
 	b := data.Float32Traits.CastToBytes([]float32{
@@ -196,6 +270,43 @@ func TestNewNumericVecOptionalInt16(t *testing.T) {
 	assert.IsType(t, (*data.NullableInt16Vector)(nil), dv)
 }
 
+func TestNewNumericVecRequiredUint16(t *testing.T) {
+	const N = 10
+	b := data.Uint16Traits.CastToBytes([]uint16{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	meta := &shared.SerializedField{
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_UINT2.Enum(),
+			Mode:      common.DataMode_REQUIRED.Enum(),
+		},
+	}
+
+	dv := data.NewValueVec(b, meta)
+	assert.IsType(t, (*data.Uint16Vector)(nil), dv)
+}
+
+func TestNewNumericVecOptionalUint16(t *testing.T) {
+	const N = 10
+	b := data.Uint16Traits.CastToBytes([]uint16{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	bytemap := []byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1}
+
+	meta := &shared.SerializedField{
+		ValueCount: proto.Int32(0),
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_UINT2.Enum(),
+			Mode:      common.DataMode_OPTIONAL.Enum(),
+		},
+	}
+
+	dv := data.NewValueVec(append(bytemap, b...), meta)
+	assert.IsType(t, (*data.NullableUint16Vector)(nil), dv)
+}
+
 func TestNewNumericVecRequiredInt8(t *testing.T) {
 	const N = 10
 	b := data.Int8Traits.CastToBytes([]int8{
@@ -231,4 +342,41 @@ func TestNewNumericVecOptionalInt8(t *testing.T) {
 
 	dv := data.NewValueVec(append(bytemap, b...), meta)
 	assert.IsType(t, (*data.NullableInt8Vector)(nil), dv)
+}
+
+func TestNewNumericVecRequiredUint8(t *testing.T) {
+	const N = 10
+	b := data.Uint8Traits.CastToBytes([]uint8{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	meta := &shared.SerializedField{
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_UINT1.Enum(),
+			Mode:      common.DataMode_REQUIRED.Enum(),
+		},
+	}
+
+	dv := data.NewValueVec(b, meta)
+	assert.IsType(t, (*data.Uint8Vector)(nil), dv)
+}
+
+func TestNewNumericVecOptionalUint8(t *testing.T) {
+	const N = 10
+	b := data.Uint8Traits.CastToBytes([]uint8{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	})
+
+	bytemap := []byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1}
+
+	meta := &shared.SerializedField{
+		ValueCount: proto.Int32(0),
+		MajorType: &common.MajorType{
+			MinorType: common.MinorType_UINT1.Enum(),
+			Mode:      common.DataMode_OPTIONAL.Enum(),
+		},
+	}
+
+	dv := data.NewValueVec(append(bytemap, b...), meta)
+	assert.IsType(t, (*data.NullableUint8Vector)(nil), dv)
 }

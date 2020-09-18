@@ -1,13 +1,65 @@
 package data
 
+//go:generate go run ../cmd/tmpl -data numeric.tmpldata arrow_numeric.gen_test.go.tmpl
+
 import (
+	"reflect"
+
 	"github.com/apache/arrow/go/arrow"
 	"github.com/apache/arrow/go/arrow/array"
 	"github.com/apache/arrow/go/arrow/bitutil"
+	"github.com/apache/arrow/go/arrow/decimal128"
 	"github.com/apache/arrow/go/arrow/memory"
 	"github.com/factset/go-drill/internal/rpc/proto/common"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 )
+
+func ArrowTypeToReflect(typ arrow.DataType) reflect.Type {
+	switch typ.ID() {
+	case arrow.BOOL:
+		return reflect.TypeOf(true)
+	case arrow.UINT8:
+		return reflect.TypeOf(uint8(0))
+	case arrow.INT8:
+		return reflect.TypeOf(int8(0))
+	case arrow.UINT16:
+		return reflect.TypeOf(uint16(0))
+	case arrow.INT16:
+		return reflect.TypeOf(int16(0))
+	case arrow.UINT32:
+		return reflect.TypeOf(uint32(0))
+	case arrow.INT32:
+		return reflect.TypeOf(int32(0))
+	case arrow.UINT64:
+		return reflect.TypeOf(uint64(0))
+	case arrow.INT64:
+		return reflect.TypeOf(int64(0))
+	case arrow.FLOAT32:
+		return reflect.TypeOf(float32(0))
+	case arrow.FLOAT64:
+		return reflect.TypeOf(float64(0))
+	case arrow.STRING:
+		return reflect.TypeOf("")
+	case arrow.BINARY, arrow.FIXED_SIZE_BINARY:
+		return reflect.TypeOf([]byte{})
+	case arrow.TIMESTAMP:
+		return reflect.TypeOf(arrow.Timestamp(0))
+	case arrow.DATE64:
+		return reflect.TypeOf(arrow.Date64(0))
+	case arrow.TIME32:
+		return reflect.TypeOf(arrow.Time32(0))
+	case arrow.INTERVAL:
+		switch typ.(type) {
+		case *arrow.DayTimeIntervalType:
+			return reflect.TypeOf(arrow.DayTimeInterval{})
+		case *arrow.MonthIntervalType:
+			return reflect.TypeOf(arrow.MonthInterval(0))
+		}
+	case arrow.DECIMAL:
+		return reflect.TypeOf(decimal128.FromI64(0))
+	}
+	return nil
+}
 
 func TypeToArrowType(typ common.MinorType) arrow.DataType {
 	switch typ {

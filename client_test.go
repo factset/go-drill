@@ -39,6 +39,7 @@ func TestNewClient(t *testing.T) {
 	assert.ElementsMatch(t, []string{"zknode1", "zknode2", "zknode3"}, cl.ZkNodes)
 	assert.IsType(t, rpcEncoder{}, cl.dataEncoder)
 	assert.Equal(t, opts, cl.Opts)
+	assert.Equal(t, basicData, cl.dataImpl)
 	assert.GreaterOrEqual(t, cl.coordID, int32(0))
 }
 
@@ -48,6 +49,7 @@ func TestNewDirectClient(t *testing.T) {
 		Schema:        "foobar",
 		SaslEncrypt:   true,
 		HeartbeatFreq: &heartbeat,
+		UseArrow:      true,
 	}
 
 	cl := NewDirectClient(opts, "localhost", 1234)
@@ -60,6 +62,7 @@ func TestNewDirectClient(t *testing.T) {
 	assert.GreaterOrEqual(t, cl.coordID, int32(0))
 	assert.Equal(t, "localhost", cl.endpoint.GetAddress())
 	assert.Equal(t, int32(1234), cl.endpoint.GetUserPort())
+	assert.Equal(t, arrowData, cl.dataImpl)
 }
 
 type TCPServer struct {

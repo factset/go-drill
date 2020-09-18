@@ -109,7 +109,7 @@ func (VarbinaryVector) Type() reflect.Type {
 }
 
 func (VarbinaryVector) TypeLen() (int64, bool) {
-	return math.MaxInt64, true
+	return int64(math.MaxUint16), true
 }
 
 func (v *VarbinaryVector) Len() int {

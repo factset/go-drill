@@ -113,7 +113,7 @@ func TestVarbinaryVector(t *testing.T) {
 
 	assert.Exactly(t, reflect.TypeOf([]byte{}), vec.Type())
 	l, ok := vec.TypeLen()
-	assert.Exactly(t, int64(math.MaxInt64), l)
+	assert.Exactly(t, int64(math.MaxUint16), l)
 	assert.True(t, ok)
 
 	assert.Equal(t, len(varchardata), vec.Len())
@@ -135,7 +135,7 @@ func TestVarcharVector(t *testing.T) {
 
 	assert.Exactly(t, reflect.TypeOf(string("")), vec.Type())
 	l, ok := vec.TypeLen()
-	assert.Exactly(t, int64(math.MaxInt64), l)
+	assert.Exactly(t, int64(math.MaxUint16), l)
 	assert.True(t, ok)
 
 	assert.Equal(t, len(varchardata), vec.Len())
@@ -165,7 +165,7 @@ func TestNullableVarcharVector(t *testing.T) {
 
 	assert.Exactly(t, reflect.TypeOf(string("")), vec.Type())
 	l, ok := vec.TypeLen()
-	assert.Exactly(t, int64(math.MaxInt64), l)
+	assert.Exactly(t, int64(math.MaxUint16), l)
 	assert.True(t, ok)
 
 	assert.Equal(t, len(varchardata), vec.Len())

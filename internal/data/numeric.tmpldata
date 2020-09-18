@@ -28,14 +28,16 @@
     "name": "uint64",
     "Type": "uint64",
     "Default": "0",
-    "Size": "8"
+    "Size": "8",
+    "ProtoType": "UINT8"
   },
   {
     "Name": "Uint32",
     "name": "uint32",
     "Type": "uint32",
     "Default": "0",
-    "Size": "4"
+    "Size": "4",
+    "ProtoType": "UINT4"
   },
   {
     "Name": "Float32",
@@ -58,7 +60,8 @@
     "name": "uint16",
     "Type": "uint16",
     "Default": "0",
-    "Size": "2"
+    "Size": "2",
+    "ProtoType": "UINT2"
   },
   {
     "Name": "Int8",
@@ -73,6 +76,7 @@
     "name": "uint8",
     "Type": "uint8",
     "Default": "0",
-    "Size": "1"
+    "Size": "1",
+    "ProtoType": "UINT1"
   }
 ]

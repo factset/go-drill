@@ -55,8 +55,9 @@ type mockBatch struct {
 	mock.Mock
 }
 
-func (mb *mockBatch) NumCols() int        { return 0 }
-func (mb *mockBatch) AffectedRows() int32 { return int32(mb.Called().Int(0)) }
+func (mb *mockBatch) ColumnName(_ int) string { return "" }
+func (mb *mockBatch) NumCols() int            { return 0 }
+func (mb *mockBatch) AffectedRows() int32     { return int32(mb.Called().Int(0)) }
 func (mb *mockBatch) NumRows() int32 {
 	return int32(mb.Called().Int(0))
 }
@@ -245,7 +246,7 @@ func TestRowsColumnTypeHelpers(t *testing.T) {
 		{"column type length", func() interface{} {
 			a, b := r.ColumnTypeLength(1)
 			return []interface{}{a, b}
-		}, []interface{}{int64(math.MaxInt64), true}},
+		}, []interface{}{int64(math.MaxUint16), true}},
 	}
 
 	for _, tt := range tests {

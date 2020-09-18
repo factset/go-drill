@@ -5,12 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"reflect"
 	"testing"
 
+	"github.com/apache/arrow/go/arrow"
+	"github.com/apache/arrow/go/arrow/array"
+	"github.com/factset/go-drill/internal/rpc/proto/common"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -34,7 +40,7 @@ var rbData = []struct {
 
 const successfulQueryResult = "080212120905fed7bc6f65ca2011933559ea008ca279"
 
-func getTestResultHandle() *ResultHandle {
+func getTestResultHandle(impl dataImplType) *ResultHandle {
 	dc := make(chan *queryData)
 	go func() {
 		defer close(dc)
@@ -55,6 +61,7 @@ func getTestResultHandle() *ResultHandle {
 	}()
 	return &ResultHandle{
 		dataChannel: dc,
+		implType:    impl,
 	}
 }
 
@@ -77,7 +84,7 @@ var cancelledResult = &shared.QueryResult{
 
 func ExampleResultHandle_Next() {
 	// using sample nation data set from Drill repo
-	rh := getTestResultHandle()
+	rh := getTestResultHandle(basicData)
 
 	// iterate the batches
 	batch, err := rh.Next()
@@ -170,7 +177,7 @@ func ExampleResultHandle_Next_cancelled() {
 
 func ExampleResultHandle_GetRecordBatch() {
 	// using sample nation data set from Drill repo
-	rh := getTestResultHandle()
+	rh := getTestResultHandle(basicData)
 
 	// at the start the record batch is nil, so the first call will grab from the channel
 	rb := rh.GetRecordBatch()
@@ -201,7 +208,7 @@ func ExampleResultHandle_GetRecordBatch() {
 
 func ExampleResultHandle_GetCols() {
 	// using sample nation data set from Drill repo
-	rh := getTestResultHandle()
+	rh := getTestResultHandle(basicData)
 
 	cols := rh.GetCols()
 	for _, c := range cols {
@@ -281,4 +288,236 @@ func TestResultHandleCancel(t *testing.T) {
 	assert.EqualValues(t, rpc.RpcMode_REQUEST, hdr.GetMode())
 	assert.EqualValues(t, rh.queryID.GetPart1(), id.GetPart1())
 	assert.EqualValues(t, rh.queryID.GetPart2(), id.GetPart2())
+}
+
+func ExampleResultHandle_Next_arrow() {
+	// use sample nation data set from Drill repo, with arrow impl
+	rh := getTestResultHandle(arrowData)
+
+	// iterate the batches
+	for {
+		batch, err := rh.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+
+		rec := batch.(ArrowBatch).Record
+		defer rec.Release()
+
+		for i := 0; int64(i) < rec.NumRows(); i++ {
+			for _, col := range rec.Columns() {
+				switch col.DataType().ID() {
+				case arrow.BINARY:
+					fmt.Print("|", col.(*array.Binary).ValueString(i))
+				case arrow.INT64:
+					fmt.Print("|", col.(*array.Int64).Value(i))
+				}
+			}
+			fmt.Println("|")
+		}
+	}
+
+	// Output:
+	// |0|ALGERIA|0| haggle. carefully final deposits detect slyly agai|
+	// |1|ARGENTINA|1|al foxes promise slyly according to the regular accounts. bold requests alon|
+	// |2|BRAZIL|1|y alongside of the pending deposits. carefully special packages are about the ironic forges. slyly special |
+	// |3|CANADA|1|eas hang ironic, silent packages. slyly regular packages are furiously over the tithes. fluffily bold|
+	// |4|EGYPT|4|y above the carefully unusual theodolites. final dugouts are quickly across the furiously regular d|
+	// |5|ETHIOPIA|0|ven packages wake quickly. regu|
+	// |6|FRANCE|3|refully final requests. regular, ironi|
+	// |7|GERMANY|3|l platelets. regular accounts x-ray: unusual, regular acco|
+	// |8|INDIA|2|ss excuses cajole slyly across the packages. deposits print aroun|
+	// |9|INDONESIA|2| slyly express asymptotes. regular deposits haggle slyly. carefully ironic hockey players sleep blithely. carefull|
+	// |10|IRAN|4|efully alongside of the slyly final dependencies. |
+	// |11|IRAQ|4|nic deposits boost atop the quickly final requests? quickly regula|
+	// |12|JAPAN|2|ously. final, express gifts cajole a|
+	// |13|JORDAN|4|ic deposits are blithely about the carefully regular pa|
+	// |14|KENYA|0| pending excuses haggle furiously deposits. pending, express pinto beans wake fluffily past t|
+	// |15|MOROCCO|0|rns. blithely bold courts among the closely regular packages use furiously bold platelets?|
+	// |16|MOZAMBIQUE|0|s. ironic, unusual asymptotes wake blithely r|
+	// |17|PERU|1|platelets. blithely pending dependencies use fluffily across the even pinto beans. carefully silent accoun|
+	// |18|CHINA|2|c dependencies. furiously express notornis sleep slyly regular accounts. ideas sleep. depos|
+	// |19|ROMANIA|3|ular asymptotes are about the furious multipliers. express dependencies nag above the ironically ironic account|
+	// |20|SAUDI ARABIA|4|ts. silent requests haggle. closely express packages sleep across the blithely|
+	// |21|VIETNAM|2|hely enticingly express accounts. even, final |
+	// |22|RUSSIA|3| requests against the platelets use never according to the quickly regular pint|
+	// |23|UNITED KINGDOM|3|eans boost carefully special requests. accounts are. carefull|
+	// |24|UNITED STATES|1|y final packages. slow foxes cajole quickly. quickly silent platelets breach ironic accounts. unusual pinto be|
+}
+
+func ExampleResultHandle_GetRecordBatch_arrow() {
+	// use sample nation data set from drill repo, use arrow impl
+	rh := getTestResultHandle(arrowData)
+
+	// at the start the record batch is nil so the first call will grab from the channel
+	rb := rh.GetRecordBatch()
+	fmt.Printf("Num Cols: %d\n", rb.NumCols())
+	fmt.Printf("Rows in this Batch: %d\n", rb.NumRows())
+	// 0 affected rows since this wasn't an insert / update
+	fmt.Printf("Affected Rows: %d\n", rb.AffectedRows())
+
+	for idx, f := range rh.GetCols() {
+		fmt.Printf("Col %d: %s\tNullable: %#v\tType: %s\n", idx,
+			f, rb.IsNullable(idx), rb.TypeName(idx))
+	}
+
+	// Output:
+	// Num Cols: 4
+	// Rows in this Batch: 9
+	// Affected Rows: 0
+	// Col 0: N_NATIONKEY	Nullable: false	Type: BIGINT
+	// Col 1: N_NAME	Nullable: false	Type: VARBINARY
+	// Col 2: N_REGIONKEY	Nullable: false	Type: BIGINT
+	// Col 3: N_COMMENT	Nullable: false	Type: VARBINARY
+}
+
+func TestArrowRec(t *testing.T) {
+	rh := getTestResultHandle(arrowData)
+
+	batch, err := rh.Next()
+	assert.NoError(t, err)
+
+	vecs := batch.GetVectors()
+	assert.Equal(t, batch.NumCols(), len(vecs))
+
+	for idx, v := range vecs {
+		assert.EqualValues(t, batch.NumRows(), v.Len())
+		assert.IsType(t, ArrowVectorWrapper{}, v)
+		c := batch.(ArrowBatch).Record.Column(idx)
+		assert.Same(t, c, v.(ArrowVectorWrapper).Interface)
+
+		p, s, ok := batch.PrecisionScale(idx)
+		assert.Zero(t, p)
+		assert.Zero(t, s)
+		assert.False(t, ok)
+
+		assert.Nil(t, v.Value(0))
+	}
+
+	assert.Exactly(t, reflect.TypeOf(int64(0)), vecs[0].Type())
+	l, ok := vecs[0].TypeLen()
+	assert.False(t, ok)
+	assert.Zero(t, l)
+
+	coldata := batch.(ArrowBatch).Record.Column(0).Data()
+	assert.Same(t, &coldata.Buffers()[1].Bytes()[0], &vecs[0].GetRawBytes()[0])
+
+	l, ok = vecs[1].TypeLen()
+	assert.True(t, ok)
+	assert.Equal(t, int64(math.MaxUint16), l)
+	assert.Exactly(t, reflect.TypeOf([]byte{}), vecs[1].Type())
+
+	coldata = batch.(ArrowBatch).Record.Column(1).Data()
+	assert.Same(t, &coldata.Buffers()[2].Bytes()[0], &vecs[1].GetRawBytes()[0])
+}
+
+type mockRecord struct {
+	mock.Mock
+}
+
+func (m *mockRecord) Release()                         {}
+func (m *mockRecord) Retain()                          {}
+func (m *mockRecord) NumRows() int64                   { return 0 }
+func (m *mockRecord) NumCols() int64                   { return 0 }
+func (m *mockRecord) Columns() []array.Interface       { return nil }
+func (m *mockRecord) Column(i int) array.Interface     { return nil }
+func (m *mockRecord) ColumnName(i int) string          { return "" }
+func (m *mockRecord) NewSlice(i, j int64) array.Record { return nil }
+func (m *mockRecord) Schema() *arrow.Schema {
+	return m.Called().Get(0).(*arrow.Schema)
+}
+
+func TestRowBatchPrecision(t *testing.T) {
+	tests := []struct {
+		name  string
+		typ   *common.MajorType
+		prec  int64
+		scale int64
+		ok    bool
+	}{
+		{"decimal9", &common.MajorType{
+			MinorType: common.MinorType_DECIMAL9.Enum(),
+			Precision: proto.Int32(2),
+			Scale:     proto.Int32(1)},
+			2, 1, true},
+		{"decimal18", &common.MajorType{
+			MinorType: common.MinorType_DECIMAL18.Enum(),
+			Precision: proto.Int32(10),
+			Scale:     proto.Int32(0)},
+			10, 0, true},
+		{"decimal28Sparse", &common.MajorType{
+			MinorType: common.MinorType_DECIMAL28SPARSE.Enum(),
+			Precision: proto.Int32(17),
+			Scale:     proto.Int32(5)},
+			17, 5, true},
+		{"decimal38Sparse", &common.MajorType{
+			MinorType: common.MinorType_DECIMAL38SPARSE.Enum(),
+			Precision: proto.Int32(20),
+			Scale:     proto.Int32(6)},
+			20, 6, true},
+		{"decimal28Dense", &common.MajorType{
+			MinorType: common.MinorType_DECIMAL28DENSE.Enum(),
+			Precision: proto.Int32(2),
+			Scale:     proto.Int32(1)},
+			2, 1, true},
+		{"decimal38Dense", &common.MajorType{
+			MinorType: common.MinorType_DECIMAL38DENSE.Enum(),
+			Precision: proto.Int32(20),
+			Scale:     proto.Int32(6)},
+			20, 6, true},
+		{"integer", &common.MajorType{
+			MinorType: common.MinorType_BIGINT.Enum(),
+			Precision: proto.Int32(0),
+			Scale:     proto.Int32(0)},
+			0, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &recordBatch{def: &shared.RecordBatchDef{
+				Field: []*shared.SerializedField{
+					{MajorType: tt.typ},
+				},
+			}}
+			p, s, ok := b.PrecisionScale(0)
+			assert.Equal(t, tt.prec, p)
+			assert.Equal(t, tt.scale, s)
+			assert.Equal(t, tt.ok, ok)
+		})
+	}
+}
+
+func TestArrowBatchFuncsNoMetadata(t *testing.T) {
+	arrowTests := []struct {
+		name     string
+		typename string
+		typ      arrow.DataType
+		prec     int64
+		scale    int64
+		ok       bool
+	}{
+		{"arrow decimal", "DECIMAL", &arrow.Decimal128Type{Precision: 20, Scale: 6}, 20, 6, true},
+		{"arrow integer", "INT32", &arrow.Int32Type{}, 0, 0, false},
+	}
+	for _, tt := range arrowTests {
+		t.Run(tt.name, func(t *testing.T) {
+			sc := arrow.NewSchema([]arrow.Field{{Type: tt.typ}}, nil)
+
+			mr := new(mockRecord)
+			mr.On("Schema").Return(sc)
+
+			ab := ArrowBatch{Record: mr}
+			p, s, ok := ab.PrecisionScale(0)
+			assert.Equal(t, tt.prec, p)
+			assert.Equal(t, tt.scale, s)
+			assert.Equal(t, tt.ok, ok)
+
+			assert.Equal(t, tt.typename, ab.TypeName(0))
+			assert.Zero(t, ab.AffectedRows())
+		})
+	}
 }

@@ -4,7 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"reflect"
+	"strconv"
+	"strings"
 
+	"github.com/apache/arrow/go/arrow"
+	"github.com/apache/arrow/go/arrow/array"
 	"github.com/factset/go-drill/internal/data"
 	"github.com/factset/go-drill/internal/rpc/proto/common"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
@@ -13,6 +19,13 @@ import (
 
 type DataVector data.DataVector
 type NullableDataVector data.NullableDataVector
+
+type dataImplType int
+
+const (
+	basicData dataImplType = iota
+	arrowData
+)
 
 // A DataHandler is an object that allows iterating through record batches as the data
 // comes in, or cancelling a running query.
@@ -24,6 +37,9 @@ type DataHandler interface {
 	Close() error
 }
 
+// RowBatch presents the interface for dealing with record batches so that we don't
+// have to expose the object and can swap out our underlying implementation in the
+// future if needed.
 type RowBatch interface {
 	NumCols() int
 	NumRows() int32
@@ -32,6 +48,7 @@ type RowBatch interface {
 	TypeName(index int) string
 	PrecisionScale(index int) (precision, scale int64, ok bool)
 	GetVectors() []DataVector
+	ColumnName(i int) string
 }
 
 // A ResultHandle is an opaque handle for a given result set, implementing the DataHandler
@@ -43,7 +60,9 @@ type RowBatch interface {
 type ResultHandle struct {
 	dataChannel chan *queryData
 	queryResult *shared.QueryResult
-	curBatch    *recordBatch
+	curBatch    RowBatch
+
+	implType dataImplType
 
 	queryID *shared.QueryId
 	client  *Client
@@ -76,13 +95,30 @@ type PreparedHandle interface{}
 // fields, as per the Protobuf definitions. Through the fields we can get the types,
 // the column names, and information about how it was serialized.
 //
-// Future Looking
-//
-// Eventually this will likely hide the protobuf implementation behind an interface,
-// but for now it was easier to just expose the protobuf definitions.
+// This object isn't exposed directly in order to hide the Protobuf implementation
+// details from consumers, instead we expose an interface which allows function calls
+// to expose the desired information.
 type recordBatch struct {
 	def  *shared.RecordBatchDef
 	vecs []DataVector
+}
+
+func newRecordBatch(qd *shared.QueryData, raw []byte) RowBatch {
+	batch := &recordBatch{
+		vecs: make([]DataVector, 0, len(qd.GetDef().GetField())),
+		def:  qd.GetDef(),
+	}
+
+	var offset int32 = 0
+	for _, f := range qd.GetDef().GetField() {
+		batch.vecs = append(batch.vecs, data.NewValueVec(raw[offset:offset+f.GetBufferLength()], f))
+		offset += f.GetBufferLength()
+	}
+	return batch
+}
+
+func (rb *recordBatch) ColumnName(i int) string {
+	return rb.def.Field[i].NamePart.GetName()
 }
 
 func (rb *recordBatch) GetVectors() []DataVector {
@@ -129,6 +165,155 @@ func (rb *recordBatch) PrecisionScale(index int) (precision, scale int64, ok boo
 	return
 }
 
+// ArrowVectorWrapper is a thin wrapper around an arrow array to fit our DataVector
+// interface so that we can use arrow Records as the underlying data storage for
+// our record handling if desired. This allows future enhancements and also
+// letting our current set up for returning data be allowed to return arrow records
+// without having to change much.
+type ArrowVectorWrapper struct {
+	array.Interface
+}
+
+// Value for now will always return nil, the expectation is to cast the wrapper
+// to an array.Interface and use it directly via arrow rather than using the DataVector
+// interface.
+//
+// TODO: implement type switch from arrow to pull value for this
+func (a ArrowVectorWrapper) Value(index uint) interface{} {
+	// for now let's not bother with this for arrow and just have consumers
+	// cast to the underlying arrow vector
+	return nil
+}
+
+// TypeLen returns the max length for variable length types (the second output is true)
+// otherwise fixed length types return false for the second output.
+func (a ArrowVectorWrapper) TypeLen() (int64, bool) {
+	switch a.DataType().ID() {
+	case arrow.BINARY, arrow.STRING:
+		return int64(math.MaxUint16), true
+	default:
+		return 0, false
+	}
+}
+
+// GetNullBytemap returns the bytes of the bitmap from the underlying arrow array.
+func (a ArrowVectorWrapper) GetNullBytemap() []byte {
+	return a.NullBitmapBytes()
+}
+
+// GetRawBytes returns the underlying raw data for the array.
+func (a ArrowVectorWrapper) GetRawBytes() []byte {
+	switch a.DataType().ID() {
+	case arrow.BINARY, arrow.STRING, arrow.FIXED_SIZE_BINARY:
+		return a.Data().Buffers()[2].Bytes()
+	default:
+		return a.Data().Buffers()[1].Bytes()
+	}
+}
+
+// IsNull just forwards to the underlying IsNull for the arrow array.
+func (a ArrowVectorWrapper) IsNull(index uint) bool {
+	return a.Interface.IsNull(int(index))
+}
+
+// Type determines the go reflection type for the values of the array.
+func (a ArrowVectorWrapper) Type() reflect.Type {
+	return data.ArrowTypeToReflect(a.DataType())
+}
+
+// ArrowBatch is a record batch implementation of RowBatch which uses an arrow
+// array.Record as the underlying storage instead.
+type ArrowBatch struct {
+	array.Record
+}
+
+func newArrowBatch(qd *shared.QueryData, raw []byte) RowBatch {
+	fields := make([]arrow.Field, len(qd.GetDef().GetField()))
+	cols := make([]array.Interface, len(qd.GetDef().GetField()))
+
+	var offset int32 = 0
+	for idx, f := range qd.GetDef().GetField() {
+		fields[idx].Name = f.NamePart.GetName()
+		fields[idx].Nullable = f.MajorType.GetMode() == common.DataMode_OPTIONAL
+
+		cols[idx] = data.NewArrowArray(raw[offset:offset+f.GetBufferLength()], f)
+		fields[idx].Type = cols[idx].DataType()
+		fields[idx].Metadata = arrow.NewMetadata([]string{"dbtype"}, []string{f.MajorType.MinorType.String()})
+		offset += f.GetBufferLength()
+	}
+
+	metadata := arrow.NewMetadata([]string{"affectedRows"}, []string{strconv.Itoa(int(qd.GetAffectedRowsCount()))})
+	schema := arrow.NewSchema(fields, &metadata)
+	return ArrowBatch{array.NewRecord(schema, cols, int64(qd.Def.GetRecordCount()))}
+}
+
+// NumCols just returns the number of columns in the row batch.
+func (a ArrowBatch) NumCols() int {
+	return int(a.Record.NumCols())
+}
+
+// NumRows returns the number of rows in the rowbatch
+func (a ArrowBatch) NumRows() int32 {
+	return int32(a.Record.NumRows())
+}
+
+// AffectedRows returns the number of rows listed as "Affected" by the response
+// typically 0 unless the query was an insert/update.
+func (a ArrowBatch) AffectedRows() (rows int32) {
+	meta := a.Schema().Metadata()
+	idx := meta.FindKey("affectedRows")
+	if idx == -1 {
+		return
+	}
+
+	val, err := strconv.Atoi(meta.Values()[idx])
+	if err != nil {
+		return
+	}
+	rows = int32(val)
+	return
+}
+
+// IsNullable reports whether the column index is a vector that can be null.
+func (a ArrowBatch) IsNullable(index int) bool {
+	return a.Schema().Field(index).Nullable
+}
+
+// TypeName returns the Database Type string for the column as defined by the
+// record definition from drill.
+func (a ArrowBatch) TypeName(index int) string {
+	field := a.Schema().Field(index)
+	idx := field.Metadata.FindKey("dbtype")
+	if idx == -1 {
+		return strings.ToUpper(field.Type.Name())
+	}
+
+	return field.Metadata.Values()[idx]
+}
+
+// PrecisionScale returns the precision and scale of the type for this column as
+// defined in the RowsColumnTypePrecisionScale interface of database/sql/driver
+func (a ArrowBatch) PrecisionScale(index int) (precision, scale int64, ok bool) {
+	field := a.Schema().Field(index)
+	if field.Type.ID() != arrow.DECIMAL {
+		return
+	}
+
+	precision = int64(field.Type.(*arrow.Decimal128Type).Precision)
+	scale = int64(field.Type.(*arrow.Decimal128Type).Scale)
+	ok = true
+	return
+}
+
+// GetVectors returns the actual columns of data for this row batch.
+func (a ArrowBatch) GetVectors() []DataVector {
+	ret := make([]DataVector, a.NumCols())
+	for idx, arr := range a.Columns() {
+		ret[idx] = ArrowVectorWrapper{arr}
+	}
+	return ret
+}
+
 // Close the channel and remove the query handler from the client
 func (r *ResultHandle) Close() error {
 	close(r.dataChannel)
@@ -158,11 +343,10 @@ func (r *ResultHandle) GetCols() []string {
 		r.nextBatch()
 	}
 
-	cols := make([]string, len(r.curBatch.def.GetField()))
-	for idx, f := range r.curBatch.def.GetField() {
-		cols[idx] = *f.NamePart.Name
+	cols := make([]string, r.curBatch.NumCols())
+	for i := 0; i < r.curBatch.NumCols(); i++ {
+		cols[i] = r.curBatch.ColumnName(i)
 	}
-
 	return cols
 }
 
@@ -237,15 +421,11 @@ func (r *ResultHandle) nextBatch() {
 	case int32(user.RpcType_QUERY_DATA):
 		// more data!
 		qd := q.msg.(*shared.QueryData)
-		r.curBatch = &recordBatch{
-			vecs: make([]DataVector, 0, len(qd.GetDef().GetField())),
-			def:  qd.GetDef(),
-		}
-
-		var offset int32 = 0
-		for _, f := range qd.GetDef().GetField() {
-			r.curBatch.vecs = append(r.curBatch.vecs, data.NewValueVec(q.raw[offset:offset+f.GetBufferLength()], f))
-			offset += f.GetBufferLength()
+		switch r.implType {
+		case basicData:
+			r.curBatch = newRecordBatch(qd, q.raw)
+		case arrowData:
+			r.curBatch = newArrowBatch(qd, q.raw)
 		}
 	case int32(user.RpcType_QUERY_RESULT):
 		// we got our query result, store it!

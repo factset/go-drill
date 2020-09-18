@@ -1,6 +1,7 @@
 package data_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/apache/arrow/go/arrow"
@@ -23,6 +24,7 @@ func Test{{.Name}}Arrow(t *testing.T) {
 	arr := data.NewArrowArray(b, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.PrimitiveTypes.{{.Name}}, arr.DataType())
+	assert.Equal(t, reflect.TypeOf({{.Type}}({{.Default}})), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 

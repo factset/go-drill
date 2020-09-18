@@ -3,6 +3,7 @@ package data_test
 import (
 	"encoding/binary"
 	"math"
+	"reflect"
 	"testing"
 	"time"
 
@@ -65,6 +66,7 @@ func TestBitArrow(t *testing.T) {
 	arr := data.NewArrowArray([]byte{0xaa, 0xaa}, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.FixedWidthTypes.Boolean, arr.DataType())
+	assert.Exactly(t, reflect.TypeOf(false), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 	assert.Zero(t, arr.NullN())
 
@@ -108,6 +110,7 @@ func TestBinaryArrow(t *testing.T) {
 	arr := data.NewArrowArray(vbytes, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.BinaryTypes.Binary, arr.DataType())
+	assert.Exactly(t, reflect.TypeOf([]byte{}), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, len(varchardata), arr.Len())
 
 	for idx, val := range varchardata {
@@ -150,6 +153,7 @@ func TestStringArrow(t *testing.T) {
 	arr := data.NewArrowArray(vbytes, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.BinaryTypes.String, arr.DataType())
+	assert.Exactly(t, reflect.TypeOf(""), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, len(varchardata), arr.Len())
 
 	for idx, val := range varchardata {
@@ -195,6 +199,7 @@ func TestTimestampArrow(t *testing.T) {
 	arr := data.NewArrowArray(b, createMetaField(common.DataMode_REQUIRED, common.MinorType_TIMESTAMP.Enum(), int32(N), int32(len(b))))
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.FixedWidthTypes.Timestamp_ms, arr.DataType())
+	assert.Exactly(t, reflect.TypeOf(arrow.Timestamp(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, N, arr.Len())
 
 	for idx, val := range values {
@@ -246,6 +251,7 @@ func TestDateArrow(t *testing.T) {
 	arr := data.NewArrowArray(bindata, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.FixedWidthTypes.Date64, arr.DataType())
+	assert.Exactly(t, reflect.TypeOf(arrow.Date64(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, 1, arr.Len())
 
 	date, _ := time.ParseInLocation(time.RFC3339, "2008-02-23T00:00:00+00:00", time.UTC)
@@ -260,6 +266,7 @@ func TestTimeArrow(t *testing.T) {
 	arr := data.NewArrowArray(bindata, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.FixedWidthTypes.Time32ms, arr.DataType())
+	assert.Exactly(t, reflect.TypeOf(arrow.Time32(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, 1, arr.Len())
 
 	exptime, _ := time.ParseInLocation("15:04:05 MST", "12:23:34 UTC", time.UTC)
@@ -274,6 +281,7 @@ func TestIntervalYearArrow(t *testing.T) {
 	arr := data.NewArrowArray(rawbin, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.FixedWidthTypes.MonthInterval, arr.DataType())
+	assert.Exactly(t, reflect.TypeOf(arrow.MonthInterval(0)), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, 1, arr.Len())
 
 	assert.Equal(t, arrow.MonthInterval(-12), arr.(*array.MonthInterval).Value(0))
@@ -286,6 +294,7 @@ func TestIntervalDayArrow(t *testing.T) {
 	arr := data.NewArrowArray(bindata, meta)
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.FixedWidthTypes.DayTimeInterval, arr.DataType())
+	assert.Exactly(t, reflect.TypeOf(arrow.DayTimeInterval{}), data.ArrowTypeToReflect(arr.DataType()))
 	assert.Equal(t, 1, arr.Len())
 
 	dt := arr.(*array.DayTimeInterval).Value(0)
@@ -312,4 +321,5 @@ func TestNullArrowVec(t *testing.T) {
 		}})
 	assert.NotNil(t, arr)
 	assert.IsType(t, arrow.Null, arr.DataType())
+	assert.Exactly(t, reflect.TypeOf(nil), data.ArrowTypeToReflect(arr.DataType()))
 }

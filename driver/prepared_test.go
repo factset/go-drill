@@ -59,7 +59,7 @@ func TestPreparedExecContext(t *testing.T) {
 	rb.On("AffectedRows").Return(5)
 
 	mr.On("Next").Return(nil, rb).Twice()
-	mr.On("Next").Return(io.EOF, (drill.DataBatch)(nil))
+	mr.On("Next").Return(io.EOF, (drill.RowBatch)(nil))
 
 	prep := &prepared{stmt: p, client: m}
 	r, err := prep.ExecContext(context.Background(), []driver.NamedValue{})
@@ -88,7 +88,7 @@ func TestPreparedExecContextWithErr(t *testing.T) {
 	rb.On("AffectedRows").Return(5)
 
 	mr.On("Next").Return(nil, rb).Twice()
-	mr.On("Next").Return(assert.AnError, (drill.DataBatch)(nil))
+	mr.On("Next").Return(assert.AnError, (drill.RowBatch)(nil))
 
 	prep := &prepared{stmt: p, client: m}
 	r, err := prep.ExecContext(context.Background(), []driver.NamedValue{})
@@ -114,7 +114,7 @@ func TestPreparedExecContextCtxTimeout(t *testing.T) {
 	mr.On("Cancel").Run(func(mock.Arguments) {
 		waiter <- time.Now()
 	})
-	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.DataBatch)(nil))
+	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.RowBatch)(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -192,7 +192,7 @@ func TestPreparedQueryContextCtxTimeout(t *testing.T) {
 	mr.On("Cancel").Run(func(mock.Arguments) {
 		waiter <- time.Now()
 	})
-	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.DataBatch)(nil))
+	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.RowBatch)(nil))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -213,7 +213,7 @@ func TestPreparedQueryContext(t *testing.T) {
 
 	p := drill.PreparedHandle(5)
 	m.On("ExecuteStmt", p).Return(mr, nil)
-	mr.On("Next").Return(nil, (drill.DataBatch)(nil))
+	mr.On("Next").Return(nil, (drill.RowBatch)(nil))
 
 	prep := &prepared{stmt: p, client: m}
 	r, err := prep.QueryContext(context.Background(), []driver.NamedValue{})

@@ -120,7 +120,7 @@ var sampleDef = shared.RecordBatchDef{
 	},
 }
 
-func getSampleRecordBatch() drill.DataBatch {
+func getSampleRecordBatch() drill.RowBatch {
 	b, _ := hex.DecodeString(compraw)
 	zr, _ := zlib.NewReader(bytes.NewReader(b))
 	defer zr.Close()
@@ -173,7 +173,7 @@ func TestRowsNextEnd(t *testing.T) {
 	mr.Test(t)
 	defer mr.AssertExpectations(t)
 
-	mr.On("GetRecordBatch").Return((drill.DataBatch)(nil))
+	mr.On("GetRecordBatch").Return((drill.RowBatch)(nil))
 
 	r := &rows{handle: mr, curRow: 1}
 	dest := make([]driver.Value, 4)
@@ -205,7 +205,7 @@ func TestRowsNextCallNextErr(t *testing.T) {
 	defer mr.AssertExpectations(t)
 
 	mr.On("GetRecordBatch").Return(getSampleRecordBatch())
-	mr.On("Next").Return(assert.AnError, (drill.DataBatch)(nil))
+	mr.On("Next").Return(assert.AnError, (drill.RowBatch)(nil))
 
 	r := &rows{handle: mr, curRow: 10}
 	dest := make([]driver.Value, 4)

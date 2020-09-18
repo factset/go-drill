@@ -117,19 +117,19 @@ type mockResHandle struct {
 func (m *mockResHandle) Cancel()           { m.Called() }
 func (m *mockResHandle) Close() error      { return m.Called().Error(0) }
 func (m *mockResHandle) GetCols() []string { return m.Called().Get(0).([]string) }
-func (m *mockResHandle) GetRecordBatch() drill.DataBatch {
+func (m *mockResHandle) GetRecordBatch() drill.RowBatch {
 	ret := m.Called().Get(0)
 	if ret == nil {
 		return nil
 	}
-	return ret.(drill.DataBatch)
+	return ret.(drill.RowBatch)
 }
-func (m *mockResHandle) Next() (drill.DataBatch, error) {
+func (m *mockResHandle) Next() (drill.RowBatch, error) {
 	args := m.Called()
 	if args.Get(1) == nil {
 		return nil, args.Error(0)
 	}
-	return args.Get(1).(drill.DataBatch), args.Error(0)
+	return args.Get(1).(drill.RowBatch), args.Error(0)
 }
 
 func TestConnQueryContextCtxTimeout(t *testing.T) {
@@ -147,7 +147,7 @@ func TestConnQueryContextCtxTimeout(t *testing.T) {
 	mr.On("Cancel").Run(func(mock.Arguments) {
 		waiter <- time.Now()
 	})
-	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.DataBatch)(nil))
+	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.RowBatch)(nil))
 
 	c := &conn{m}
 
@@ -173,7 +173,7 @@ func TestConnExecContextCtxTimeout(t *testing.T) {
 	mr.On("Cancel").Run(func(mock.Arguments) {
 		waiter <- time.Now()
 	})
-	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.DataBatch)(nil))
+	mr.On("Next").WaitUntil(waiter).Return(assert.AnError, (drill.RowBatch)(nil))
 
 	c := &conn{m}
 
@@ -197,7 +197,7 @@ func TestConnQueryContext(t *testing.T) {
 	defer mr.AssertExpectations(t)
 
 	m.On("SubmitQuery", drill.TypeSQL, "foobar").Return(mr, nil)
-	mr.On("Next").After(100*time.Millisecond).Return(nil, (drill.DataBatch)(nil))
+	mr.On("Next").After(100*time.Millisecond).Return(nil, (drill.RowBatch)(nil))
 
 	c := &conn{m}
 	r, err := c.QueryContext(context.Background(), "foobar", []driver.NamedValue{})
@@ -221,7 +221,7 @@ func TestConnExecContext(t *testing.T) {
 	rb.On("AffectedRows").Return(5)
 
 	mr.On("Next").Return(nil, rb).Twice()
-	mr.On("Next").Return(io.EOF, (drill.DataBatch)(nil))
+	mr.On("Next").Return(io.EOF, (drill.RowBatch)(nil))
 
 	c := &conn{m}
 	r, err := c.ExecContext(context.Background(), "foobar", []driver.NamedValue{})
@@ -246,7 +246,7 @@ func TestConnExecContextWithErr(t *testing.T) {
 	rb.On("AffectedRows").Return(5)
 
 	mr.On("Next").Return(nil, rb).Twice()
-	mr.On("Next").Return(assert.AnError, (drill.DataBatch)(nil))
+	mr.On("Next").Return(assert.AnError, (drill.RowBatch)(nil))
 
 	c := &conn{m}
 	r, err := c.ExecContext(context.Background(), "foobar", []driver.NamedValue{})

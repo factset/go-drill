@@ -17,14 +17,14 @@ type NullableDataVector data.NullableDataVector
 // A DataHandler is an object that allows iterating through record batches as the data
 // comes in, or cancelling a running query.
 type DataHandler interface {
-	Next() (DataBatch, error)
+	Next() (RowBatch, error)
 	Cancel()
 	GetCols() []string
-	GetRecordBatch() DataBatch
+	GetRecordBatch() RowBatch
 	Close() error
 }
 
-type DataBatch interface {
+type RowBatch interface {
 	NumCols() int
 	NumRows() int32
 	AffectedRows() int32
@@ -140,7 +140,7 @@ func (r *ResultHandle) Close() error {
 // recieved one it will attempt to check the channel and block for the first
 // batch. If this returns nil then that means there is no data and calling
 // Next will return the status.
-func (r *ResultHandle) GetRecordBatch() DataBatch {
+func (r *ResultHandle) GetRecordBatch() RowBatch {
 	if r.curBatch == nil {
 		r.nextBatch()
 	}
@@ -202,7 +202,7 @@ var (
 // If there are no more record batches and the query did not complete successfully,
 // it will return either an error wrapping ErrQueryFailed, or one of the other
 // error types.
-func (r *ResultHandle) Next() (DataBatch, error) {
+func (r *ResultHandle) Next() (RowBatch, error) {
 	r.curBatch = nil
 	r.nextBatch()
 	if r.curBatch != nil {

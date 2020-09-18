@@ -1,5 +1,6 @@
 # go-drill
 
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/factset/go-drill)](https://pkg.go.dev/github.com/factset/go-drill)
 [![codecov](https://codecov.io/gh/factset/go-drill/branch/master/graph/badge.svg)](https://codecov.io/gh/factset/go-drill)
 [![Go Report Card](https://goreportcard.com/badge/github.com/factset/go-drill)](https://goreportcard.com/report/github.com/factset/go-drill)
 [![CI Test](https://github.com/factset/go-drill/workflows/Go/badge.svg)](https://github.com/factset/go-drill/actions)

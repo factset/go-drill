@@ -1,0 +1,7 @@
+branch:
+  master: release
+release: 'github'
+github:
+  repo: "go-drill"
+  user: "factset"
+commitFormat: angular

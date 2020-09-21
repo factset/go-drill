@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 
+	"github.com/apache/arrow/go/arrow"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
 	"google.golang.org/protobuf/proto"
@@ -134,4 +135,69 @@ func decodeRPCMessage(data []byte, msg proto.Message) (*rpc.RpcHeader, error) {
 
 	ret := rpcMsg.GetHeader()
 	return ret, proto.Unmarshal(rpcMsg.ProtobufBody, msg)
+}
+
+type ColumnMeta interface {
+	GetColumnName() string
+	GetIsNullable() bool
+	GetDataType() string
+	GetCharMaxLength() int32
+	GetCharOctetLength() int32
+	GetNumericPrecision() int32
+	GetNumericPrecisionRadix() int32
+	GetNumericScale() int32
+	GetDateTimePrecision() int32
+	GetIntervalType() string
+	GetIntervalPrecision() int32
+	GetColumnSize() int32
+	GetDefaultValue() string
+}
+
+func arrowDataTypeFromCol(c ColumnMeta) arrow.DataType {
+	switch c.GetDataType() {
+	case "BOOLEAN":
+		return arrow.FixedWidthTypes.Boolean
+	case "BINARY VARYING":
+		return arrow.BinaryTypes.Binary
+	case "CHARACTER VARYING":
+		return arrow.BinaryTypes.String
+	case "INTEGER":
+		return arrow.PrimitiveTypes.Int32
+	case "BIGINT":
+		return arrow.PrimitiveTypes.Int64
+	case "SMALLINT":
+		return arrow.PrimitiveTypes.Int16
+	case "TINYINT":
+		return arrow.PrimitiveTypes.Int8
+	case "DATE":
+		return arrow.FixedWidthTypes.Date64
+	case "TIME":
+		return arrow.FixedWidthTypes.Time32ms
+	case "FLOAT":
+		return arrow.PrimitiveTypes.Float32
+	case "DOUBLE":
+		return arrow.PrimitiveTypes.Float64
+	case "TIMESTAMP":
+		return arrow.FixedWidthTypes.Timestamp_ms
+	default:
+		panic("arrow type conversion not found for: " + c.GetDataType())
+	}
+}
+
+// ColMetaToArrowField returns an arrow.Field for the column metadata provided,
+// panics if not of type BOOLEAN, VARCHAR, VARBINARY, INTEGER, SMALLINT, BIGINT,
+// TINYINT, DATE, TIME, TIMESTAMP, FLOAT, or DOUBLE.
+//
+// TODO: handle decimal types
+//
+// Adds the following metadata:
+//	Default Value: key "default"
+//
+func ColMetaToArrowField(c ColumnMeta) arrow.Field {
+	return arrow.Field{
+		Name:     c.GetColumnName(),
+		Nullable: c.GetIsNullable(),
+		Metadata: arrow.NewMetadata([]string{"default"}, []string{c.GetDefaultValue()}),
+		Type:     arrowDataTypeFromCol(c),
+	}
 }

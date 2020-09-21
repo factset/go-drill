@@ -1,3 +1,4 @@
+// Mainprog to update the protobuf definitions
 package main
 
 import (

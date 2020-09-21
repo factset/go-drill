@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/apache/arrow/go/arrow"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/rpc"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 	"github.com/factset/go-drill/internal/rpc/proto/exec/user"
@@ -238,4 +239,51 @@ func TestReadPrefixedMessageErr(t *testing.T) {
 	out, err := readPrefixedMessage(buf, nil)
 	assert.Nil(t, out)
 	assert.Error(t, err)
+}
+
+func TestArrowFromColPanic(t *testing.T) {
+	c := &user.ColumnMetadata{}
+	assert.Panics(t, func() { ColMetaToArrowField(c) })
+}
+
+func TestArrowFromCol(t *testing.T) {
+	tests := []struct {
+		name     string
+		typ      string
+		expected arrow.DataType
+		nullable bool
+		def      string
+	}{
+		{"bool", "BOOLEAN", arrow.FixedWidthTypes.Boolean, true, "false"},
+		{"binary", "BINARY VARYING", arrow.BinaryTypes.Binary, false, ""},
+		{"varchar", "CHARACTER VARYING", arrow.BinaryTypes.String, true, "foo"},
+		{"integer", "INTEGER", arrow.PrimitiveTypes.Int32, false, "1"},
+		{"int64", "BIGINT", arrow.PrimitiveTypes.Int64, true, "123456"},
+		{"int16", "SMALLINT", arrow.PrimitiveTypes.Int16, false, "65535"},
+		{"tinyint", "TINYINT", arrow.PrimitiveTypes.Int8, true, "1"},
+		{"date", "DATE", arrow.FixedWidthTypes.Date64, false, "1987-08-04"},
+		{"time", "TIME", arrow.FixedWidthTypes.Time32ms, true, "12:30PM"},
+		{"float", "FLOAT", arrow.PrimitiveTypes.Float32, false, "1.2"},
+		{"double", "DOUBLE", arrow.PrimitiveTypes.Float64, false, "1.2"},
+		{"timestamp", "TIMESTAMP", arrow.FixedWidthTypes.Timestamp_ms, true, "123456789"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &user.ColumnMetadata{
+				ColumnName:   &tt.name,
+				DataType:     &tt.typ,
+				IsNullable:   &tt.nullable,
+				DefaultValue: &tt.def,
+			}
+
+			f := ColMetaToArrowField(c)
+			assert.True(t, f.Equal(arrow.Field{
+				Name:     tt.name,
+				Type:     tt.expected,
+				Nullable: tt.nullable,
+				Metadata: arrow.NewMetadata([]string{"default"}, []string{tt.def}),
+			}))
+		})
+	}
 }

@@ -7,18 +7,17 @@
 [![Smoke Test](https://github.com/factset/go-drill/workflows/SmokeTest/badge.svg)](https://github.com/factset/go-drill/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
-go-drill is a highly efficient Pure Go Client and Sql driver for [Apache Drill](https://drill.apache.org) and [Dremio](https://www.dremio.com). 
-It differs from other clients / drivers by using the
-native Protobuf API to communicate with Drill instead of the REST API. As a result
-this becomes significatly more performant when dealing with large amounts of data.
-The raw bytes that are returned from Drill aren't copied, but are instead
-interpreted and used in place via slices for efficiency.
+**go-drill** is a highly efficient Pure Go Client and Sql driver for [Apache Drill](https://drill.apache.org) and [Dremio](https://www.dremio.com). 
+It differs from other clients / drivers by using the native Protobuf API to communicate instead of the REST API. The use of Protobuf
+enables **zero-copy access to the returned data, resulting in greater efficiency.**
 
-Currently it only supports either no authentication or authentication via SASL
-gssapi-krb5.
 
-In addition, the sql driver expects to connect to a zookeeper quorum to find the
-drillbits, though you can connect directly to a drillbit via the Client.
+At the present time, the driver may be used without authentication or with
+authentication via SASL gssapi-krb-5.
+
+In typical use, the driver is initialized with a list of zookeeper hosts
+to enable the driver to locate drillbits. It is also possible to connect
+directly to a drillbit via the client.
 
 ## Install
 
@@ -36,7 +35,7 @@ go get -u github.com/factset/go-drill/driver
 
 ## Usage
 
-The driver can be used like any normal Golang SQL driver:
+The driver can be used like a typical Golang SQL driver:
 
 ```go
 import (

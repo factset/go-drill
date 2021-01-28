@@ -1,4 +1,5 @@
-// Package drill is a highly efficient Pure Go client and driver for Apache Drill.
+// Package drill is a highly efficient Pure Go client and driver for Apache Drill
+// and Dremio.
 //
 // A driver for the database/sql package is also provided via the driver subpackage.
 // This can be used like so:

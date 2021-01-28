@@ -14,6 +14,9 @@ import (
 	"github.com/factset/go-drill/internal/rpc/proto/exec/shared"
 )
 
+// ArrowTypeToReflect will get the reflection type from the arrow datatype.
+//
+// TODO: handle decimal types properly
 func ArrowTypeToReflect(typ arrow.DataType) reflect.Type {
 	switch typ.ID() {
 	case arrow.BOOL:
@@ -61,6 +64,9 @@ func ArrowTypeToReflect(typ arrow.DataType) reflect.Type {
 	return nil
 }
 
+// TypeToArrowType converts the specified type enum to an arrow Data Type
+//
+// TODO: handle decimal types
 func TypeToArrowType(typ common.MinorType) arrow.DataType {
 	switch typ {
 	case common.MinorType_BIGINT:
@@ -113,6 +119,10 @@ func nullBytesToBits(bytemap []byte) []byte {
 	return ret
 }
 
+// NewArrowArray constructs an arrow.Interface array from the given raw data and serialized
+// metadata as a zero-copy array.
+//
+// TODO: Handle decimal types properly
 func NewArrowArray(rawData []byte, meta *shared.SerializedField) (ret array.Interface) {
 	arrowType := TypeToArrowType(meta.GetMajorType().GetMinorType())
 	if arrowType == arrow.Null {

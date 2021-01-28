@@ -1,3 +1,4 @@
+// Package sasl provides the utilities for SASL authentication via gssapi
 package sasl
 
 import (

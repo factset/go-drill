@@ -7,10 +7,10 @@
 [![Smoke Test](https://github.com/factset/go-drill/workflows/SmokeTest/badge.svg)](https://github.com/factset/go-drill/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
-**go-drill** is a highly efficient, pure go client and SQL driver for [Apache Drill](https://drill.apache.org).
-It differs from other clients / drivers by using the native Protobuf API to
-communicate with Drill instead of the REST API. The use of Protobufs enables
-zero-copy access to returned data, resulting in greater efficiency.
+**go-drill** is a highly efficient Pure Go Client and Sql driver for [Apache Drill](https://drill.apache.org) and [Dremio](https://www.dremio.com). 
+It differs from other clients / drivers by using the native Protobuf API to communicate instead of the REST API. The use of Protobuf
+enables **zero-copy access to the returned data, resulting in greater efficiency.**
+
 
 At the present time, the driver may be used without authentication or with
 authentication via SASL gssapi-krb-5.
